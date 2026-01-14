@@ -1,0 +1,114 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n static %}
+
+{% block title %}
+    {{ title }} | {{ site_title|default:_('Django site admin') }}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-[80vh] p-4">
+    <!-- 卡片容器 -->
+    <div class="w-full max-w-3xl bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        
+        <!-- 头部 -->
+        <div class="flex flex-col items-center p-10 pb-0">
+            <div class="p-3 bg-blue-50 rounded-full dark:bg-gray-700">
+                <span class="material-symbols-outlined text-4xl text-blue-600 dark:text-blue-400">center_focus_weak</span>
+            </div>
+            <h5 class="mb-1 text-xl font-medium text-gray-900 dark:text-white mt-4">人脸识别扫描</h5>
+            <span class="text-sm text-gray-500 dark:text-gray-400">点击下方区域上传或拍摄照片进行比对</span>
+        </div>
+
+        <!-- 上传区域 -->
+        <div class="p-10">
+            <div 
+                onclick="document.getElementById('fileInput').click()"
+                class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-700 hover:border-blue-500 transition-colors"
+            >
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <span class="material-symbols-outlined text-gray-400 text-5xl mb-3">cloud_upload</span>
+                    <p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">点击上传</span> 或拖拽图片到此处</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">支持 JPG, PNG, BMP</p>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleSearch()">
+            </div>
+
+            <!-- 结果显示区 (默认隐藏) -->
+            <div id="resultArea" class="hidden mt-8">
+                <!-- 加载中 -->
+                <div id="loading" class="flex items-center justify-center text-gray-500">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    正在比对人脸库...
+                </div>
+
+                <!-- 成功卡片 -->
+                <div id="successCard" class="hidden flex items-center p-4 mb-4 text-sm text-green-800 border border-green-300 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 dark:border-green-800">
+                    <img id="resAvatar" src="" class="w-16 h-16 rounded-full object-cover mr-4 border-2 border-green-500">
+                    <div>
+                        <div class="font-bold text-lg" id="resScore">识别成功</div>
+                        <div id="resName">姓名：--</div>
+                        <div id="resId">ID：--</div>
+                    </div>
+                </div>
+
+                <!-- 失败警告 -->
+                <div id="errorCard" class="hidden p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+                    <span class="font-medium">识别失败！</span> <span id="errMsg"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleSearch() {
+        const file = document.getElementById('fileInput').files[0];
+        if(!file) return;
+
+        const fd = new FormData();
+        fd.append('image', file);
+
+        // UI Reset
+        const area = document.getElementById('resultArea');
+        const loader = document.getElementById('loading');
+        const suc = document.getElementById('successCard');
+        const err = document.getElementById('errorCard');
+        
+        area.classList.remove('hidden');
+        loader.classList.remove('hidden');
+        suc.classList.add('hidden');
+        err.classList.add('hidden');
+
+        fetch('/api/search_face/', {
+            method: 'POST',
+            body: fd,
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        })
+        .then(r => r.json())
+        .then(data => {
+            loader.classList.add('hidden');
+            
+            if(data.status === 'success' && data.result.error_code === 0) {
+                const user = data.result.result.user_list[0];
+                if(user.score < 80) {
+                    err.classList.remove('hidden');
+                    document.getElementById('errMsg').innerText = `相似度 (${user.score}%) 过低，判定为陌生人`;
+                } else {
+                    suc.classList.remove('hidden');
+                    document.getElementById('resScore').innerText = `识别成功 (相似度 ${user.score}%)`;
+                    document.getElementById('resName').innerText = `姓名：${user.name}`;
+                    document.getElementById('resId').innerText = `ID：${user.user_id}`;
+                    document.getElementById('resAvatar').src = user.face_url || '/static/unfold/img/default_avatar.svg';
+                }
+            } else {
+                err.classList.remove('hidden');
+                document.getElementById('errMsg').innerText = data.result ? data.result.error_msg : '未知错误';
+            }
+        });
+        document.getElementById('fileInput').value = '';
+    }
+</script>
+{% endblock %}

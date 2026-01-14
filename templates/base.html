@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}系统管理{% endblock %}</title>
+    <style>
+        /* 全局样式重置 */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft YaHei", Arial, sans-serif; }
+        body { background-color: #f5f7fa; padding: 20px; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* 卡片样式 */
+        .card { background-color: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); padding: 24px; margin-bottom: 20px; }
+        
+        /* 导航栏样式 */
+        .navbar { display: flex; justify-content: space-between; align-items: center; background-color: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); padding: 16px 24px; margin-bottom: 20px; }
+        .nav-links { display: flex; gap: 16px; }
+        .nav-link { padding: 8px 16px; color: #333; text-decoration: none; font-size: 14px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; transition: background-color 0.2s; }
+        .nav-link:hover { background-color: #f0f7ff; color: #165DFF; }
+        
+        /* 用户信息 */
+        .user-info { font-size: 14px; color: #666; display: flex; gap: 10px; align-items: center; }
+        .username { color: #333; font-weight: 500; }
+        .logout-link { color: #165DFF; text-decoration: none; }
+        .logout-link:hover { text-decoration: underline; }
+
+        /* 消息提示 */
+        .flash-messages { margin-bottom: 20px; padding: 12px 16px; border-radius: 4px; font-size: 14px; }
+        .flash-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+        /* 按钮通用 */
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; color: white; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+        .btn-primary { background-color: #165DFF; }
+        .btn-primary:hover { background-color: #0047cc; }
+        
+        /* 表单控件 */
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 500; }
+        .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <!-- 导航栏 -->
+        <div class="navbar">
+            <div class="nav-links">
+                <!-- 首页 -->
+                <a href="{% url 'index' %}" class="nav-link">
+                    首页
+                </a>
+                
+                <!-- 管理员链接：直接指向 Django Admin 后台 -->
+                <!-- is_staff 表示是否有权进入后台 -->
+                {% if user.is_staff or user.is_superuser %}
+                <a href="/admin/core/user/" class="nav-link" target="_blank">
+                    用户管理 (后台)
+                </a>
+                <a href="/admin/core/person/" class="nav-link" target="_blank">
+                    人员管理 (后台)
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="user-info">
+                <!-- [修复点 1] 使用 Django 过滤器 default -->
+                <!-- request.user 会自动注入，user.username 获取用户名 -->
+                <span>当前用户：<span class="username">{{ user.username|default:'未登录' }}</span></span>
+                <span>|</span>
+                <!-- [修复点 2] 使用 Django url 标签 -->
+                <a href="{% url 'logout' %}" class="logout-link">退出登录</a>
+            </div>
+        </div>
+
+        <!-- 全局消息提示 -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash-messages flash-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- 页面主体 -->
+        <div class="card">
+            <h1>{% block page_title %}系统管理{% endblock %}</h1>
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,814 @@
+<!-- templates/person_manage.html -->
+{% extends "base.html" %}
+
+{% block title %}后台管理 - 人员管理{% endblock %}
+{% block page_title %}人员管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 4px;
+        object-fit: cover;
+        border: 1px solid #eee;
+        /* 图片加载失败时的样式 */
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #999;
+        font-size: 12px;
+    }
+    /* 弹窗样式增强 */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+    .modal-content {
+        background: #fff;
+        border-radius: 8px;
+        width: 100%;
+        max-width: 800px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        position: relative;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .modal-title {
+        padding: 16px 20px;
+        font-size: 18px;
+        font-weight: bold;
+        border-bottom: 1px solid #eee;
+        margin: 0;
+    }
+    .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 16px;
+        font-size: 24px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        padding: 0 8px;
+        line-height: 1;
+    }
+    .modal-close:hover {
+        color: #333;
+    }
+    .modal-body {
+        padding: 20px;
+    }
+    .modal-footer {
+        padding: 12px 20px;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .form-group {
+        margin-bottom: 0;
+    }
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+    }
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .form-control[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+    .form-hint {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+    }
+    .required {
+        color: #dc3545;
+    }
+    /* 按钮样式 */
+    .btn {
+        padding: 6px 12px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+    .btn-warning {
+        background: #ffc107;
+        color: #212529;
+    }
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    .btn-default {
+        background: #6c757d;
+        color: white;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    /* 表格样式 */
+    .table-container {
+        overflow-x: auto;
+        margin: 20px 0;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+    th, td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    th {
+        background: #f8f9fa;
+        font-weight: 500;
+    }
+    /* 分页样式 */
+    .pagination {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+    }
+    .pagination-btn {
+        padding: 6px 12px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        background: #fff;
+        color: #333;
+        text-decoration: none;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    .pagination-btn.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .pagination-btn.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-info {
+        color: #666;
+        font-size: 14px;
+    }
+    /* 空状态样式 */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+    }
+    /* 进度条样式 */
+    .progress-container {
+        margin: 16px 0;
+        display: none;
+    }
+    .progress-bar {
+        height: 8px;
+        background: #eee;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: #007bff;
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+    /* 导入结果表格 */
+    .result-table {
+        margin-top: 20px;
+        display: none;
+    }
+    /* 添加按钮样式 */
+    .add-person-btn {
+        margin: 0 0 20px 0;
+    }
+    /* 上传照片区域样式 */
+    .upload-face-section {
+        padding: 16px;
+        border: 1px dashed #ddd;
+        border-radius: 4px;
+        margin-top: 16px;
+    }
+    .upload-face-title {
+        font-weight: 500;
+        margin-bottom: 12px;
+        color: #333;
+    }
+    /* 批量导入弹窗特殊样式 */
+    #importModal .modal-content {
+        max-width: 900px;
+    }
+    /* 旋转动画 */
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 添加人员按钮 -->
+<button class="btn btn-success add-person-btn" onclick="showAddPerson()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+    添加单个人员
+</button>
+
+<!-- 批量导入按钮 -->
+<button class="btn btn-primary add-person-btn" onclick="showImportModal()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+    </svg>
+    批量导入人员
+</button>
+
+<!-- ========== 新增：导出按钮 ========== -->
+<a href="{{ url_for('export_persons') }}" class="btn btn-warning add-person-btn" target="_blank" style="text-decoration: none; margin-left: 0;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+    </svg>
+    导出Excel
+</a>
+<!-- ================================== -->
+
+<!-- 人员列表 -->
+<h2>人员列表</h2>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>序号</th>
+                <th>人脸照片</th>
+                <th>姓名</th>
+                <th>班级</th>
+                <th>用户类型</th>
+                <th>身份证号</th>
+                <th>创建时间</th>
+                <th>更新时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for idx, person in enumerate(persons) %}
+            <tr>
+                <td>{{ (current_page - 1) * per_page + idx + 1 }}</td>
+                <td>
+                    <!-- 修改：使用后端 get_local_face 接口动态加载图片 -->
+                    <img 
+                        src="{{ url_for('get_local_face', id_card=person.id_card) }}" 
+                        alt="{{ person.name }}" 
+                        class="avatar" 
+                        loading="lazy"
+                        onerror="this.onerror=null; this.src='{{ url_for('static', filename='default.jpg') }}';">
+                </td>
+                <td>{{ person.name }}</td>
+                <td>{{ person.class_name or '未设置' }}</td>
+                <td>{{ person.user_type or '未设置' }}</td>
+                <td>{{ person.id_card }}</td>
+                <td>{{ person.create_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ person.update_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="action-buttons">
+                    <button class="btn btn-primary" onclick="showEditPerson('{{ person.name }}', '{{ person.class_name }}', '{{ person.user_type }}', '{{ person.id_card }}', '{{ person.source_image_url }}')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        编辑
+                    </button>
+                    <form method="POST" action="/admin/delete_person/{{ person.id_card }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('确定删除人员 {{ person.name }}（{{ person.id_card }}）吗？删除后将同时删除本地图片！')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            删除
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9">
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <p>暂无人员数据</p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 分页控件 -->
+{% if total_persons > 0 %}
+<div class="pagination">
+    <a href="{{ url_for('person_manage', page=current_page-1, per_page=per_page) }}" 
+       class="pagination-btn {% if current_page == 1 %}disabled{% endif %}"
+       {% if current_page == 1 %}onclick="return false"{% endif %}>
+        上一页
+    </a>
+    
+    {% if start_page > 1 %}
+    <a href="{{ url_for('person_manage', page=1, per_page=per_page) }}" class="pagination-btn">1</a>
+    {% if start_page > 2 %}
+    <span class="pagination-info">...</span>
+    {% endif %}
+    {% endif %}
+    
+    {% for p in range(start_page, end_page + 1) %}
+    <a href="{{ url_for('person_manage', page=p, per_page=per_page) }}" 
+       class="pagination-btn {% if p == current_page %}active{% endif %}">
+        {{ p }}
+    </a>
+    {% endfor %}
+    
+    {% if end_page < total_pages %}
+    {% if end_page < total_pages - 1 %}
+    <span class="pagination-info">...</span>
+    {% endif %}
+    <a href="{{ url_for('person_manage', page=total_pages, per_page=per_page) }}" class="pagination-btn">{{ total_pages }}</a>
+    {% endif %}
+    
+    <a href="{{ url_for('person_manage', page=current_page+1, per_page=per_page) }}" 
+       class="pagination-btn {% if current_page == total_pages %}disabled{% endif %}"
+       {% if current_page == total_pages %}onclick="return false"{% endif %}>
+        下一页
+    </a>
+    
+    <span class="pagination-info">
+        共 {{ total_persons }} 条记录 | 
+        第 {{ current_page }}/{{ total_pages }} 页 | 
+        每页 {{ per_page }} 条
+    </span>
+    
+    <select class="pagination-btn" onchange="changePerPage(this.value)">
+        <option value="5" {% if per_page == 5 %}selected{% endif %}>5条/页</option>
+        <option value="10" {% if per_page == 10 %}selected{% endif %}>10条/页</option>
+        <option value="20" {% if per_page == 20 %}selected{% endif %}>20条/页</option>
+        <option value="50" {% if per_page == 50 %}selected{% endif %}>50条/页</option>
+    </select>
+</div>
+{% endif %}
+
+<!-- 新增/编辑人员弹窗（复用模板） -->
+<div id="personModal" class="modal-overlay">
+    <div class="modal-content">
+        <button class="modal-close" onclick="hidePersonModal()">&times;</button>
+        <h3 class="modal-title" id="personModalTitle">添加人员信息</h3>
+        <div class="modal-body">
+            <form id="personForm" method="POST" class="form-grid">
+                <input type="hidden" id="form_action" value="add">
+                
+                <!-- 身份证号输入框：新增可编辑，编辑只读 -->
+                <div class="form-group">
+                    <label class="form-label" for="person_id_card">身份证号 <span class="required">*</span></label>
+                    <input type="text" id="person_id_card" name="id_card" required class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="person_name">姓名 <span class="required">*</span></label>
+                    <input type="text" id="person_name" name="name" required class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="person_class_name">班级 <span class="required">*</span></label>
+                    <input type="text" id="person_class_name" name="class_name" required class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="person_user_type">用户类型 <span class="required">*</span></label>
+                    <input type="text" id="person_user_type" name="user_type" required class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="person_source_image_url">图片URL</label>
+                    <input type="text" id="person_source_image_url" name="source_image_url" placeholder="可选，仅批量导入时需要，单个添加可留空" class="form-control">
+                    <div class="form-hint">批量导入时用于下载图片，单个添加人员（已上传图片）可留空</div>
+                </div>
+                
+                <!-- 上传人脸照片区域：新增/编辑都显示 -->
+                <div class="upload-face-section" id="uploadFaceSection">
+                    <h4 class="upload-face-title">上传人脸照片</h4>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label class="form-label" for="face_file">选择人脸照片</label>
+                        <input type="file" id="face_file" name="face_file" accept=".jpg,.jpeg,.png,.bmp,.gif" class="form-control">
+                        <div class="form-hint">支持格式：jpg/jpeg/png/bmp/gif，文件名将自动以身份证号命名</div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" onclick="hidePersonModal()">取消</button>
+                    <button type="submit" class="btn btn-primary" id="personFormSubmitBtn">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 批量导入人员弹窗 -->
+<div id="importModal" class="modal-overlay">
+    <div class="modal-content">
+        <button class="modal-close" onclick="hideImportModal()">&times;</button>
+        <h3 class="modal-title">批量导入人员信息</h3>
+        <div class="modal-body">
+            <p style="color: #666; margin-bottom: 16px;">支持Excel(.xlsx/.xls)和CSV格式，必须包含列：姓名、班级、用户类型、身份证号、source_image_url</p>
+            <p style="color: #dc3545; margin-bottom: 16px; font-weight: 500;">⚠️ 大批量数据导入建议使用CSV格式，拆分为200条的文件分批导入</p>
+            
+            <form id="importForm" class="import-form">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label class="form-label" for="importFile">选择文件 <span class="required">*</span></label>
+                    <input type="file" id="importFile" name="file" accept=".xlsx,.xls,.csv" required class="form-control">
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    开始导入
+                </button>
+            </form>
+
+            <!-- 导入进度 -->
+            <div id="importProgress" class="progress-container">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText" style="margin-top: 8px; font-size: 14px; color: #666;">处理中...</p>
+            </div>
+
+            <!-- 导入结果 -->
+            <div id="importResult" class="result-table">
+                <h3>导入结果</h3>
+                <div class="table-container">
+                    <table id="resultTable">
+                        <thead>
+                            <tr>
+                                <th>行号</th>
+                                <th>身份证号</th>
+                                <th>处理结果</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultBody"></tbody>
+                    </table>
+                </div>
+                <p id="summaryText" style="margin-top: 10px; font-weight: bold; color: #333;"></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 人员弹窗通用逻辑（新增/编辑）
+    let isEditMode = false;
+    
+    function showAddPerson() {
+        isEditMode = false;
+        // 重置表单
+        document.getElementById('personForm').reset();
+        document.getElementById('form_action').value = 'add';
+        // 设置标题和按钮文字
+        document.getElementById('personModalTitle').textContent = '添加人员信息';
+        document.getElementById('personFormSubmitBtn').textContent = '添加';
+        // 身份证号可编辑
+        const idCardInput = document.getElementById('person_id_card');
+        idCardInput.readOnly = false;
+        idCardInput.classList.remove('form-control[readonly]');
+        // 显示上传区域
+        document.getElementById('uploadFaceSection').style.display = 'block';
+        // 重置文件选择
+        document.getElementById('face_file').value = '';
+        // 显示弹窗
+        document.getElementById('personModal').style.display = 'flex';
+    }
+
+    function showEditPerson(name, class_name, user_type, id_card, source_image_url) {
+        isEditMode = true;
+        // 填充表单数据
+        document.getElementById('person_name').value = name;
+        document.getElementById('person_class_name').value = class_name;
+        document.getElementById('person_user_type').value = user_type;
+        document.getElementById('person_id_card').value = id_card;
+        document.getElementById('person_source_image_url').value = source_image_url || '';
+        document.getElementById('form_action').value = 'edit';
+        // 设置标题和按钮文字
+        document.getElementById('personModalTitle').textContent = '编辑人员信息';
+        document.getElementById('personFormSubmitBtn').textContent = '保存修改';
+        // 身份证号只读
+        const idCardInput = document.getElementById('person_id_card');
+        idCardInput.readOnly = true;
+        idCardInput.classList.add('form-control[readonly]');
+        // 显示上传区域
+        document.getElementById('uploadFaceSection').style.display = 'block';
+        // 重置文件选择
+        document.getElementById('face_file').value = '';
+        // 显示弹窗
+        document.getElementById('personModal').style.display = 'flex';
+    }
+
+    function hidePersonModal() {
+        document.getElementById('personModal').style.display = 'none';
+    }
+
+    // ========== 核心修改：表单提交改为调用通用接口 ==========
+// 表单提交逻辑
+document.getElementById('personForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('personFormSubmitBtn');
+        submitBtn.disabled = true;
+        
+        try {
+            const formData = new FormData();
+            const id_card = document.getElementById('person_id_card').value.trim();
+            const faceFile = document.getElementById('face_file').files[0];
+            
+            // 1. 如果有图片，先上传图片
+            let face_path = "";
+            if (faceFile) {
+                formData.append('face_file', faceFile);
+                formData.append('id_card', id_card);
+                
+                const upRes = await fetch('/admin/upload_face', { method: 'POST', body: formData });
+                const upData = await upRes.json();
+                if (upData.status !== 'success') throw new Error(upData.message);
+                face_path = upData.save_path;
+            }
+            
+            // 2. 提交人员数据
+            const personData = {
+                id_card: id_card,
+                name: document.getElementById('person_name').value.trim(),
+                class_name: document.getElementById('person_class_name').value.trim(),
+                user_type: document.getElementById('person_user_type').value.trim(),
+                source_image_url: document.getElementById('person_source_image_url').value.trim(),
+                face_file_path: face_path
+            };
+            
+            const saveRes = await fetch('/api/save_persons', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ persons: [personData] })
+            });
+            const saveData = await saveRes.json();
+            
+            if (saveData.status === 'success' && saveData.data.fail === 0) {
+                alert('保存成功');
+                window.location.reload();
+            } else {
+                throw new Error(saveData.data.details[0]?.msg || '保存失败');
+            }
+            
+        } catch (err) {
+            alert('操作失败: ' + err.message);
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    // 批量导入弹窗逻辑（基本不变，后端已复用通用逻辑）
+    function showImportModal() {
+        // 重置状态
+        document.getElementById('importProgress').style.display = 'none';
+        document.getElementById('importResult').style.display = 'none';
+        document.getElementById('importFile').value = '';
+        // 显示弹窗
+        document.getElementById('importModal').style.display = 'flex';
+    }
+
+    function hideImportModal() {
+        document.getElementById('importModal').style.display = 'none';
+    }
+
+    // 批量导入表单提交逻辑（保持不变）
+    document.getElementById('importForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('importFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('请选择要导入的文件！');
+            return;
+        }
+
+        // 构建FormData
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // 获取DOM元素
+        const importProgress = document.getElementById('importProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const importResult = document.getElementById('importResult');
+        const resultBody = document.getElementById('resultBody');
+        const summaryText = document.getElementById('summaryText');
+
+        // 重置状态
+        importProgress.style.display = 'block';
+        progressFill.style.width = '10%';
+        progressText.textContent = '正在上传文件...';
+        importResult.style.display = 'none';
+        resultBody.innerHTML = '';
+
+        // 发送导入请求
+        fetch('/api/batch_import', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`请求失败 (${response.status})`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'error') {
+                progressFill.style.width = '0%';
+                progressText.textContent = `导入失败：${data.message}`;
+                setTimeout(() => importProgress.style.display = 'none', 3000);
+                return;
+            }
+
+            // 获取任务ID并轮询进度
+            const taskId = data.task_id;
+            progressFill.style.width = '30%';
+            progressText.textContent = '任务已启动，正在处理...';
+
+            // 轮询进度（每秒查询一次）
+            const pollInterval = setInterval(() => {
+                fetch(`/api/import_progress/${taskId}`)
+                .then(response => response.json())
+                .then(progressData => {
+                    if (progressData.status === 'error') {
+                        throw new Error(progressData.message);
+                    }
+
+                    const progressInfo = progressData.data;
+                    const total = progressInfo.total || 0;
+                    const processed = progressInfo.success + progressInfo.fail;
+                    // 计算进度条百分比 (未完成时最高95%，完成后100%)
+                    let percent = total > 0 ? Math.round((processed / total) * 100) : 0;
+                    if (progressInfo.status !== 'completed' && progressInfo.status !== 'failed' && percent > 95) {
+                        percent = 95;
+                    }
+
+                    progressFill.style.width = `${percent}%`;
+                    progressText.textContent = `已处理 ${processed}/${total} 条...`;
+
+                    // 任务完成或失败
+                    if (progressInfo.status === 'completed' || progressInfo.status === 'failed') {
+                        clearInterval(pollInterval);
+                        progressFill.style.width = '100%';
+                        
+                        // ========== 核心修改开始：仅在有失败时显示表格 ==========
+                        if (progressInfo.fail > 0) {
+                            // 有失败记录：显示结果表格
+                            progressText.textContent = '导入完成，存在失败记录！';
+                            progressText.style.color = '#dc3545'; // 红色字体提示
+                            
+                            importResult.style.display = 'block'; // 显示结果区域
+                            resultBody.innerHTML = ''; // 清空旧数据
+                            
+                            // 渲染失败详情
+                            const displayDetails = progressInfo.details.slice(0, 100);
+                            displayDetails.forEach(item => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${item.row}</td>
+                                    <td>${item.id_card}</td>
+                                    <td style="color:red;">${item.msg}</td>
+                                `;
+                                resultBody.appendChild(row);
+                            });
+
+                            if (progressInfo.details.length > 100) {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `<td colspan="3" style="text-align:center;">... 更多错误请查看后台日志 ...</td>`;
+                                resultBody.appendChild(row);
+                            }
+
+                            summaryText.textContent = `总计：${progressInfo.total} 条 | 成功：${progressInfo.success} 条 | 失败：${progressInfo.fail} 条`;
+                            
+                        } else {
+                            // 全部成功：不显示表格，直接提示成功并刷新
+                            progressText.textContent = '全部导入成功！';
+                            progressText.style.color = '#28a745'; // 绿色字体
+                            
+                            importResult.style.display = 'none'; // 隐藏结果表格
+                            
+                            // 延时关闭弹窗并刷新页面
+                            setTimeout(() => {
+                                alert(`导入完成！共成功导入 ${progressInfo.success} 条数据。`);
+                                hideImportModal();
+                                window.location.reload(); // 刷新页面显示新数据
+                            }, 500);
+                        }
+                        // ========== 核心修改结束 ==========
+
+                        // 如果有错误，进度条稍微保留一会再隐藏，不要立即消失
+                        if (progressInfo.fail > 0) {
+                            // 不隐藏进度条容器，让用户看到“导入完成，存在失败记录”
+                        } else {
+                            setTimeout(() => importProgress.style.display = 'none', 1000);
+                        }
+                    }
+                })
+                .catch(error => {
+                    clearInterval(pollInterval);
+                    progressFill.style.width = '0%';
+                    progressText.textContent = `查询进度失败：${error.message}`;
+                    // setTimeout(() => importProgress.style.display = 'none', 3000); // 出错时保留提示
+                });
+            }, 1000);
+        })
+        .catch(error => {
+            progressFill.style.width = '0%';
+            progressText.textContent = `请求失败：${error.message}`;
+            setTimeout(() => importProgress.style.display = 'none', 3000);
+            console.error('批量导入错误:', error);
+        });
+    });
+
+    // 切换每页显示条数
+    function changePerPage(perPage) {
+        const currentPage = {{ current_page }};
+        window.location.href = `/admin/person_manage?page=${currentPage}&per_page=${perPage}`;
+    }
+
+    // ESC键关闭弹窗
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            hidePersonModal();
+            hideImportModal();
+        }
+    });
+
+    // 点击弹窗外部关闭
+    ['personModal', 'importModal'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('click', (e) => {
+            if (e.target === el) {
+                id === 'personModal' ? hidePersonModal() : hideImportModal();
+            }
+        });
+    });
+</script>
+{% endblock %}

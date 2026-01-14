@@ -1,0 +1,347 @@
+<!-- templates/user_manage.html -->
+{% extends "base.html" %}
+
+{% block title %}后台管理 - 用户管理{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-locked {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .status-normal {
+        color: #28a745;
+    }
+    .user-actions-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 24px 0 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 添加用户按钮 -->
+<div class="user-actions-header">
+    <h2 style="margin: 0;">用户列表</h2>
+    <button type="button" class="btn btn-primary" onclick="showAddModal()">添加用户</button>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>序号</th>
+                <th>用户名</th>
+                <th>部门</th>
+                <th>管理员</th>
+                <th>错误次数</th>
+                <th>状态</th>
+                <th>锁定时间</th>
+                <th>创建时间</th>
+                <th>最后登录</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ (current_page - 1) * per_page + loop.index }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.department or '—' }}</td>
+                <td>{{ '是' if user.is_admin else '否' }}</td>
+                <td>{{ user.pwd_error_count or 0 }}</td>
+                <td>
+                    {% if user.is_locked %}
+                    <span class="status-locked">已锁定</span>
+                    {% else %}
+                    <span class="status-normal">正常</span>
+                    {% endif %}
+                </td>
+                <td>{% if user.lock_time %}{{ user.lock_time.strftime('%Y-%m-%d %H:%M') }}{% else %}—{% endif %}</td>
+                <td>{{ user.create_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{% if user.last_login %}{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}{% else %}未登录{% endif %}</td>
+                <td class="action-buttons">
+                    <button class="btn btn-primary" onclick="showEditModal('{{ user.username|e }}', '{{ user.department|e or '' }}', {{ 'true' if user.is_admin else 'false' }})">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        修改
+                    </button>
+                    
+                    {% if user.is_locked %}
+                    <form method="POST" action="{{ url_for('unlock_user', username=user.username) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-default" onclick="return confirm('确定解锁用户 {{ user.username|e }} 吗？')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            解锁
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    <form method="POST" action="{{ url_for('delete_user', username=user.username) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('确定删除用户 {{ user.username|e }} 吗？\n此操作不可恢复！')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            删除
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="10">
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <p>暂无用户数据</p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 分页 -->
+{% if total_users > 0 %}
+<div class="pagination">
+    <a href="{{ url_for('user_manage', page=current_page-1, per_page=per_page) }}" 
+       class="pagination-btn {% if current_page == 1 %}disabled{% endif %}"
+       {% if current_page == 1 %}onclick="return false"{% endif %}>上一页</a>
+
+    {% if start_page > 1 %}
+        <a href="{{ url_for('user_manage', page=1, per_page=per_page) }}" class="pagination-btn">1</a>
+        {% if start_page > 2 %}<span class="pagination-info">...</span>{% endif %}
+    {% endif %}
+
+    {% for p in range(start_page, end_page + 1) %}
+        <a href="{{ url_for('user_manage', page=p, per_page=per_page) }}" 
+           class="pagination-btn {% if p == current_page %}active{% endif %}">{{ p }}</a>
+    {% endfor %}
+
+    {% if end_page < total_pages %}
+        {% if end_page < total_pages - 1 %}<span class="pagination-info">...</span>{% endif %}
+        <a href="{{ url_for('user_manage', page=total_pages, per_page=per_page) }}" class="pagination-btn">{{ total_pages }}</a>
+    {% endif %}
+
+    <a href="{{ url_for('user_manage', page=current_page+1, per_page=per_page) }}" 
+       class="pagination-btn {% if current_page == total_pages %}disabled{% endif %}"
+       {% if current_page == total_pages %}onclick="return false"{% endif %}>下一页</a>
+
+    <span class="pagination-info">
+        共 {{ total_users }} 条 | 第 {{ current_page }}/{{ total_pages }} 页 | 每页 {{ per_page }} 条
+    </span>
+
+    <select class="pagination-btn" onchange="changePerPage(this.value)">
+        <option value="5" {% if per_page == 5 %}selected{% endif %}>5条/页</option>
+        <option value="10" {% if per_page == 10 %}selected{% endif %}>10条/页</option>
+        <option value="20" {% if per_page == 20 %}selected{% endif %}>20条/页</option>
+        <option value="50" {% if per_page == 50 %}selected{% endif %}>50条/页</option>
+    </select>
+</div>
+{% endif %}
+
+<!-- 添加用户弹窗 -->
+<div id="addModal" class="modal-overlay">
+    <div class="modal-content" style="position: relative;">
+        <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        <div class="modal-title">添加新用户</div>
+        <form method="POST" action="{{ url_for('add_user') }}" id="addForm" class="form-grid">
+            <div class="form-group">
+                <label class="form-label">用户名：</label>
+                <input type="text" name="username" class="form-control" required placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label class="form-label">部门：</label>
+                <input type="text" name="department" class="form-control" placeholder="请输入部门名称">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码：</label>
+                <input type="password" name="password" class="form-control" required minlength="8" placeholder="至少8位，包含大小写字母和数字">
+            </div>
+            <div class="form-group">
+                <label class="form-label">确认密码：</label>
+                <input type="password" name="confirm_pwd" class="form-control" required minlength="8" placeholder="再次输入密码">
+            </div>
+            <div class="form-group">
+                <label class="form-label">是否管理员：</label>
+                <input type="checkbox" name="is_admin" style="width: auto; margin-right: 10px;"> 
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeAddModal()">取消</button>
+                <button type="submit" class="btn btn-primary">添加用户</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 修改用户弹窗 -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content" style="position: relative;">
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        <div class="modal-title">修改用户信息</div>
+        <form method="POST" action="{{ url_for('edit_user') }}" id="editForm" class="form-grid">
+            <input type="hidden" id="editUsername" name="username">
+            <div class="form-group">
+                <label class="form-label">部门：</label>
+                <input type="text" id="editDept" name="department" class="form-control" placeholder="请输入部门名称">
+            </div>
+            <div class="form-group">
+                <label class="form-label">是否管理员：</label>
+                <input type="checkbox" id="editIsAdmin" name="is_admin" style="width: auto; margin-right: 10px;"> 
+            </div>
+            <div class="form-group">
+                <label class="form-label">新密码：</label>
+                <input type="password" id="editNewPwd" name="new_password" class="form-control" placeholder="留空则不修改">
+                <div class="form-hint">至少8位，包含大小写字母和数字</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">确认新密码：</label>
+                <input type="password" id="editConfirmPwd" name="confirm_password" class="form-control" placeholder="再次输入新密码">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" onclick="closeEditModal()">取消</button>
+                <button type="submit" class="btn btn-primary">保存修改</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 弹窗控制函数
+    function showAddModal() {
+        document.getElementById('addForm').reset();
+        document.getElementById('addModal').style.display = 'flex';
+    }
+    
+    function closeAddModal() {
+        document.getElementById('addModal').style.display = 'none';
+    }
+    
+    function showEditModal(username, dept, isAdmin) {
+        document.getElementById('editUsername').value = username;
+        document.getElementById('editDept').value = dept || '';
+        document.getElementById('editIsAdmin').checked = Boolean(isAdmin);
+        document.getElementById('editNewPwd').value = '';
+        document.getElementById('editConfirmPwd').value = '';
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+    
+    // 切换每页显示条数
+    function changePerPage(perPage) {
+        const currentPage = {{ current_page }};
+        window.location.href = `/admin/user_manage?page=${currentPage}&per_page=${perPage}`;
+    }
+
+    // 点击弹窗外部关闭 (防止点击内容区域也关闭，需判断target)
+    ['addModal', 'editModal'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('click', (e) => {
+            // 只有点击遮罩层本身才关闭，点击内部表单不关闭
+            if (e.target === el) {
+                id === 'addModal' ? closeAddModal() : closeEditModal();
+            }
+        });
+    });
+
+    // ESC键关闭弹窗
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAddModal();
+            closeEditModal();
+        }
+    });
+
+    // ========== 核心修复：添加用户使用 AJAX 提交 ==========
+    document.getElementById('addForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // 阻止默认的表单提交（防止刷新页面）
+        
+        const pwd = this.querySelector('input[name="password"]').value;
+        const confirmPwd = this.querySelector('input[name="confirm_pwd"]').value;
+        
+        // 密码复杂度验证
+        const pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!pwdRegex.test(pwd)) {
+            alert('密码必须至少8位，包含大小写字母和数字！');
+            return;
+        }
+        
+        if (pwd !== confirmPwd) {
+            alert('两次输入的密码不一致！');
+            return;
+        }
+
+        // 构造FormData
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerText;
+        submitBtn.disabled = true;
+        submitBtn.innerText = "提交中...";
+
+        // 发送AJAX请求
+        fetch('/admin/add_user', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // 成功：关闭弹窗并刷新页面
+                closeAddModal();
+                window.location.reload(); 
+            } else {
+                // 失败：仅alert报错，不关闭弹窗，不刷新页面
+                alert(data.message || '添加失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('系统错误，请重试');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
+        });
+    });
+
+    // 编辑用户保持表单提交即可（因为通常编辑成功率高，且逻辑复杂些），也可以改AJAX，但为了简单，这里不动编辑逻辑
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        const pwd = this.querySelector('input[name="new_password"]').value;
+        const confirmPwd = this.querySelector('input[name="confirm_password"]').value;
+        
+        if (pwd) {
+            const pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+            if (!pwdRegex.test(pwd)) {
+                e.preventDefault();
+                alert('密码必须至少8位，包含大小写字母和数字！');
+                return false;
+            }
+            if (pwd !== confirmPwd) {
+                e.preventDefault();
+                alert('两次输入的密码不一致！');
+                return false;
+            }
+        } else if (confirmPwd) {
+            e.preventDefault();
+            alert('请输入新密码！');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

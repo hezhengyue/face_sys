@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}页面不存在 - 404{% endblock %}
+{% block page_title %}页面不存在{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 40px 0;">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <h3 style="color: #666; margin-bottom: 20px;">抱歉，您访问的页面不存在</h3>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">返回首页</a>
+</div>
+{% endblock %}

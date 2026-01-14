@@ -1,0 +1,15 @@
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from django.shortcuts import redirect
+
+urlpatterns = [
+    # 根目录直接跳到人脸搜索页（感觉像首页）
+    path('', lambda r: redirect('/face_search/')),
+    path('admin/', admin.site.urls),
+    path('', include('core.urls')),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
