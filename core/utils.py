@@ -4,14 +4,17 @@ from loguru import logger
 from django.conf import settings
 
 def configure_logging():
+    """初始化 Loguru 日志"""
     log_root = settings.LOG_ROOT
-    for module in ['face', 'user', 'system', 'import']:
+    modules = ['face', 'user', 'system', 'import']
+
+    for module in modules:
         os.makedirs(os.path.join(log_root, module), exist_ok=True)
 
     logger.remove()
     fmt = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {extra[module]} | {message}"
 
-    for module in ['face', 'user', 'system', 'import']:
+    for module in modules:
         logger.add(
             sink=os.path.join(log_root, module, f"{module}.{{time:YYYY-MM-DD}}.log"),
             rotation="00:00",
@@ -22,9 +25,19 @@ def configure_logging():
             enqueue=True,
             level="INFO"
         )
-    logger.add(sys.stdout, format=fmt, colorize=True)
+    logger.add(sys.stdout, format=fmt, colorize=True, level="INFO")
 
-user_logger = logger.bind(module="user")
-face_logger = logger.bind(module="face")
-system_logger = logger.bind(module="system")
-import_logger = logger.bind(module="import")
+def get_client_ip(request):
+    """获取 IP 工具"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+# 预定义 Logger
+user_logger = logger.bind(module="user")     # 记录导出、业务操作
+face_logger = logger.bind(module="face")     # 记录人脸识别结果
+system_logger = logger.bind(module="system") # 记录报错
+import_logger = logger.bind(module="import") # 记录下载流水

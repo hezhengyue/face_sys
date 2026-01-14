@@ -1,10 +1,8 @@
-# core/admin.py
-
 from django import forms
 from django.contrib import admin
-from django.contrib.admin import AdminSite  # 引入 AdminSite
+from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.forms import UserCreationForm, UserChangeForm, AuthenticationForm
+from django.contrib.auth.forms import UserChangeForm, AuthenticationForm
 from django.contrib.auth import login as auth_login
 from django.utils.html import format_html
 from django.urls import reverse
@@ -12,23 +10,24 @@ from django.http import HttpResponseRedirect
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.contrib import messages
+from django.shortcuts import render 
 from django.contrib.auth.models import Group 
 from django.contrib.auth.admin import GroupAdmin
-# 【新增】导入 render
-from django.shortcuts import render
 
-# 导入 Import/Export
+# 导入第三方管理类
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
+from auditlog.models import LogEntry
+from auditlog.admin import LogEntryAdmin
+from axes.models import AccessLog
+from axes.admin import AccessLogAdmin
 
 from .models import User, Person
 from .services import ImageDownloadService
+from .utils import system_logger
 
-# =========================================================
-# 1. 定义自定义 AdminSite (原 apps.py/admin_site.py 的内容)
-# =========================================================
+# 1. 自定义 Site
 class FaceAdminSite(AdminSite):
-    """自定义AdminSite，覆盖登录跳转逻辑"""
     site_header = '人脸识别系统管理'
     site_title = '人脸识别系统'
     index_title = '数据管理'
@@ -60,15 +59,9 @@ class FaceAdminSite(AdminSite):
         context['form'] = form
         return render(request, 'admin/login.html', context)
 
-
-# 实例化站点
 face_admin_site = FaceAdminSite(name='face_admin')
 
-
-# =========================================================
-# 2. 自定义表单和 Admin 配置
-# =========================================================
-
+# 2. 用户管理 (UserAdmin)
 class CustomUserCreationForm(forms.ModelForm):
     password_1 = forms.CharField(label="密码", widget=forms.PasswordInput)
     password_2 = forms.CharField(label="确认密码", widget=forms.PasswordInput)
@@ -116,7 +109,6 @@ class UserAdmin(BaseUserAdmin):
         ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('重要日期', {'fields': ('last_login', 'date_joined')}),
     )
-    
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
@@ -141,6 +133,7 @@ class UserAdmin(BaseUserAdmin):
             return HttpResponseRedirect(reverse("admin:core_user_changelist"))
         return super().response_add(request, obj, post_url_continue)
 
+# 3. 人员管理 (PersonAdmin)
 class PersonResource(resources.ModelResource):
     name = fields.Field(attribute='name', column_name='姓名')
     class_name = fields.Field(attribute='class_name', column_name='班级')
@@ -161,7 +154,7 @@ class PersonResource(resources.ModelResource):
             try:
                 ImageDownloadService.trigger_download(instance.pk, instance.source_image_url)
             except Exception as e:
-                print(f"Trigger download error: {e}")
+                system_logger.error(f"导入触发下载失败: {e}")
 
 class PersonAdmin(ImportExportModelAdmin):
     resource_class = PersonResource
@@ -189,11 +182,11 @@ class PersonAdmin(ImportExportModelAdmin):
         return "暂无照片"
     face_preview_large.short_description = "照片预览"
 
-
-# =========================================================
-# 3. 注册所有模型
-# =========================================================
-# 这里是同一个文件，所以一定会被执行
+# 4. 注册所有模型到自定义后台
 face_admin_site.register(User, UserAdmin)
 face_admin_site.register(Person, PersonAdmin)
 face_admin_site.register(Group, GroupAdmin)
+# 注册 Auditlog (数据审计)
+face_admin_site.register(LogEntry, LogEntryAdmin)
+# 注册 Axes (安全日志)
+face_admin_site.register(AccessLog, AccessLogAdmin)

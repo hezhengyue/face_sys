@@ -7,5 +7,6 @@ requests
 python-dotenv
 loguru
 django-redis
-django-unfold
 django-import-export
+django-axes
+django-auditlog

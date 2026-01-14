@@ -1,15 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from auditlog.registry import auditlog # 导入审计注册器
 
 def face_upload_to(instance, filename):
     ext = filename.split('.')[-1].lower()
     return f'faces/{instance.id_card}.{ext}'
 
 class User(AbstractUser):
+    # 只保留业务字段，锁定字段已由 axes 接管
     department = models.CharField("部门", max_length=100, blank=True, null=True)
-    pwd_error_count = models.IntegerField("密码错误次数", default=0)
-    is_locked = models.BooleanField("是否锁定", default=False)
-    lock_time = models.DateTimeField("锁定时间", blank=True, null=True)
 
     class Meta:
         verbose_name = "系统用户"
@@ -34,3 +33,8 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.id_card})"
+
+# === 注册审计 ===
+# 这两行代码会让 django-auditlog 自动监听增删改
+auditlog.register(User)
+auditlog.register(Person)
