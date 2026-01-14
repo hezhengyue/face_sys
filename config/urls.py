@@ -1,14 +1,20 @@
+# config/urls.py
+
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include  # 【关键】导入 include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.shortcuts import redirect
+
+# 导入自定义 admin site
+from core.admin import face_admin_site
 
 urlpatterns = [
-    # 根目录直接跳到人脸搜索页（感觉像首页）
-    path('', lambda r: redirect('/face_search/')),
-    path('admin/', admin.site.urls),
-    path('', include('core.urls')),
+    # 1. 后台管理路由 (保持在主路由)
+    path('admin/', face_admin_site.urls),
+
+    # 2. 业务路由 (分发给 core.urls 处理)
+    # 凡是空路径开头的请求，都转交给 core/urls.py
+    path('', include('core.urls')), 
 ]
 
 if settings.DEBUG:

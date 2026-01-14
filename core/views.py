@@ -1,138 +1,92 @@
-import time
-import base64
-import os
-import pandas as pd
-from concurrent.futures import ThreadPoolExecutor
+import json
+import logging
 from django.shortcuts import render
-from django.contrib import admin
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.conf import settings
-from .services import BaiduService, RedisService, PersonService, redis_client
+from django.contrib.admin.views.decorators import staff_member_required
+from django.views.decorators.csrf import csrf_exempt
+from .services import BaiduService
 from .models import Person
-from .utils import import_logger, face_logger
 
-executor = ThreadPoolExecutor(2)
+# 配置日志
+logger = logging.getLogger(__name__)
 
-@login_required
+@staff_member_required(login_url='/admin/login/')  # 显式指定登录跳转地址，避免配置缺失
 def face_search_view(request):
-    """人脸搜索（嵌入Admin）"""
-    context = admin.site.each_context(request)
-    context.update({'title': '人脸搜索'})
+    """
+    渲染人脸搜索页面
+    装饰器说明：
+    @staff_member_required → 要求用户必须登录，且 is_staff=True（后台工作人员）
+    未满足条件时自动跳转到 /admin/login/
+    """
+    context = {
+        'title': '人脸识别搜索',
+        'is_popup': False,
+        'has_permission': True,
+        'site_title': '人脸识别系统',  # 统一标题，和模板匹配
+        'site_header': '人脸识别系统',
+    }
+    # 模板路径注意：你的模板在 admin/face_search.html，需确认路径正确
     return render(request, 'admin/face_search.html', context)
 
-@login_required
-def batch_import_view(request):
-    """批量导入页面（嵌入Admin）"""
-    context = admin.site.each_context(request)
-    context.update({'title': '批量导入人员'})
-    return render(request, 'admin/batch_import.html', context)
-
-@login_required
+@csrf_exempt  # API接口关闭CSRF验证（前端POST请求无需传CSRF token）
+@staff_member_required(login_url='/admin/login/')  # API也需要登录验证
 def api_search_face(request):
-    """人脸搜索 API"""
-    if request.method == 'POST':
-        f = request.FILES.get('image')
-        if not f: return JsonResponse({'status':'error', 'message':'无文件'})
-        b64 = base64.b64encode(f.read()).decode()
-        
-        face_logger.info(f"搜索请求 | 用户[{request.user}]")
-        res = BaiduService.search_face(b64)
-        
-        # 结果处理
-        if res.get('error_code') == 0:
-            user_list = res['result']['user_list']
-            if user_list:
-                top = user_list[0]
-                # 查找本地数据库信息
-                p = Person.objects.filter(id_card=top['user_id']).first()
-                if p:
-                    top['name'] = p.name
-                    top['class_name'] = p.class_name
-                    top['face_url'] = p.face_image.url if p.face_image else ''
-                else:
-                    top['name'] = '未知(本地无记录)'
-        
-        return JsonResponse({'status':'success', 'result': res})
-    return JsonResponse({'status':'error'})
-
-@login_required
-def api_batch_import(request):
-    """批量导入提交 API"""
-    if request.method == 'POST':
-        f = request.FILES.get('file')
-        task_id = f"{request.user.username}_{int(time.time())}"
-        
-        if not os.path.exists(settings.TEMP_ROOT): os.makedirs(settings.TEMP_ROOT)
-        path = os.path.join(settings.TEMP_ROOT, f"{task_id}_{f.name}")
-        
-        with open(path, 'wb+') as d:
-            for chunk in f.chunks(): d.write(chunk)
-            
-        RedisService.save_progress(task_id, {'status': 'processing', 'total': 0, 'success': 0, 'fail': 0, 'details': [], 'start_time': time.time()})
-        executor.submit(run_import_thread, path, task_id)
-        return JsonResponse({'status': 'success', 'task_id': task_id})
-    return JsonResponse({'status': 'error'})
-
-def run_import_thread(path, task_id):
-    """后台导入线程"""
-    task = RedisService.load_progress(task_id)
-    if not task: return
-    import_logger.info(f"任务开始: {task_id}")
+    """
+    API: 处理人脸搜索请求
+    请求方式：POST
+    请求体：{"image": "base64编码的图片字符串"}
+    返回格式：JSON
+    """
+    # 仅允许POST请求
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'msg': '仅支持POST请求'}, status=405)
     
     try:
-        if path.endswith('.csv'): df = pd.read_csv(path)
-        else: df = pd.read_excel(path)
-        df = df.where(pd.notnull(df), None)
-        task['total'] = len(df)
-        RedisService.save_progress(task_id, task)
+        # 解析请求体
+        data = json.loads(request.body)
+        image_base64 = data.get('image', '')
         
-        for idx, row in df.iterrows():
-            row_num = idx + 1
-            p_data = {
-                "name": str(row.get('姓名', '')).strip(),
-                "class_name": str(row.get('班级', '')).strip(),
-                "user_type": str(row.get('用户类型', '')).strip(),
-                "id_card": str(row.get('身份证号', '')).strip(),
-                "source_image_url": str(row.get('source_image_url', '')).strip()
-            }
+        # 处理base64前缀（如 "data:image/jpeg;base64,xxxx"）
+        if ',' in image_base64:
+            image_base64 = image_base64.split(',')[1]
+        
+        # 空图片校验
+        if not image_base64:
+            return JsonResponse({'status': 'fail', 'msg': '请上传有效图片'})
+        
+        # 调用百度人脸识别接口
+        res = BaiduService.search_face(image_base64)
+        
+        # 百度接口调用成功且有匹配结果
+        if res.get('error_code') == 0:
+            user_list = res.get('result', {}).get('user_list', [])
             
-            suc, msg = PersonService.process_person_data(p_data, True)
-            
-            if suc:
-                import_logger.info(f"行[{row_num}] 成功: {p_data['id_card']}")
-                task['success'] += 1
-            else:
-                import_logger.error(f"行[{row_num}] 失败: {msg}")
-                task['fail'] += 1
-                task['details'].append({'row': row_num, 'msg': msg})
-            
-            if idx % 10 == 0: RedisService.save_progress(task_id, task)
-            
-        task['status'] = 'completed'
+            if user_list:
+                # 取相似度最高的第一个结果
+                top_match = user_list[0]
+                score = top_match.get('score', 0)
+                user_id = top_match['user_id']
+                
+                # 从本地数据库查询人员信息
+                person = Person.objects.filter(id_card=user_id).first()
+                
+                # 构造返回数据
+                data_resp = {
+                    'name': person.name if person else '本地无记录',
+                    'class_name': person.class_name if person else '未知',
+                    'id_card': user_id,
+                    'score': round(score, 1),
+                    'photo_url': person.face_image.url if (person and person.face_image) else ''
+                }
+                return JsonResponse({'status': 'success', 'data': data_resp})
+        
+        # 无匹配结果（百度接口成功但无数据）
+        return JsonResponse({'status': 'fail', 'msg': '未找到匹配人员'})
+        
+    except json.JSONDecodeError:
+        logger.error("请求体解析失败：非合法JSON格式")
+        return JsonResponse({'status': 'error', 'msg': '请求参数格式错误'}, status=400)
     except Exception as e:
-        task['status'] = 'failed'
-        task['details'].append({'row': 0, 'msg': str(e)})
-        import_logger.error(f"任务崩溃: {e}")
-    finally:
-        RedisService.save_progress(task_id, task)
-        if os.path.exists(path): os.remove(path)
-
-@login_required
-def api_get_progress(request, task_id):
-    data = RedisService.load_progress(task_id)
-    if data: return JsonResponse({'status': 'success', 'data': data})
-    return JsonResponse({'status': 'error'}, status=404)
-
-
-@login_required
-def face_search_view(request):
-    context = admin.site.each_context(request)
-    context.update({
-        'title': '人脸搜索',
-        # Unfold 需要的一些额外上下文可以在这里补（通常不用）
-    })
-    # 注意：模板里我用了 base_simple.html，如果你想要左侧菜单，请改用 base.html
-    # 但 base.html 需要复杂的 navigation 数据，Unfold 的机制是在 sidebar 渲染时自动注入的
-    # 最简单的做法是直接用 base_site.html，Unfold 已经重写了它
-    return render(request, 'admin/face_search.html', context)
+        # 捕获所有未知异常，记录日志并返回友好提示
+        logger.error(f"人脸搜索异常: {str(e)}", exc_info=True)
+        return JsonResponse({'status': 'error', 'msg': '系统内部错误，请联系管理员'}, status=500)

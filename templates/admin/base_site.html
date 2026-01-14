@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+
+{# 1. 修改网页标题 #}
+{% block title %}人脸识别系统{% endblock %}
+
+{# 2. 修改左上角的品牌链接 #}
+{% block branding %}
+<h1 id="site-name">
+    {# 这里的 href="/" 让点击左上角直接回到人脸搜索 #}
+    <a href="/">人脸识别系统</a>
+</h1>
+{% endblock %}
+
+{# 3. 移除默认的面包屑导航，让界面更像一个独立系统 #}
+{% block breadcrumbs %}{% endblock %}
+
+{% block nav-global %}
+    <!-- 给 admin 页面添加返回首页的按钮 -->
+    <a href="/" style="margin-left: 10px; color: #417690; text-decoration: none;">
+        ← 返回人脸搜索首页
+    </a>
+{% endblock %}

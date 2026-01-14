@@ -7,5 +7,5 @@ requests
 python-dotenv
 loguru
 django-redis
-django-simpleui
 django-unfold
+django-import-export

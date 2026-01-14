@@ -13,18 +13,15 @@ ALLOWED_HOSTS = ['*']
 
 # 应用定义
 INSTALLED_APPS = [
-    "unfold",
-    "unfold.contrib.filters",  # 过滤器支持
-    "unfold.contrib.forms",    # 表单支持
-    "unfold.contrib.import_export", # 导入导出支持(可选)
-
+    "import_export",                 # 【!!! 必须添加这一行 !!!】这是核心库
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core.apps.CoreConfig', # 注册核心应用
+    'core.apps.CoreConfig',
 ]
 
 MIDDLEWARE = [
@@ -116,70 +113,28 @@ REDIS_URL = os.getenv('REDIS_URL','redis://127.0.0.1:6379/0')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
-# [新增] Unfold 主题配置
-from django.urls import reverse_lazy
-from django.utils.translation import gettext_lazy as _
-
-UNFOLD = {
-    "SITE_TITLE": "人脸识别管理系统",
-    "SITE_HEADER": "Face Admin",
-    "SITE_URL": "/",
-    # "SITE_ICON": lambda request: static("icon.svg"),  # 可以设置Logo
-
-    # 侧边栏配置
-    "SIDEBAR": {
-        "show_search": True,  # 显示菜单搜索框
-        "show_all_applications": False, # 不自动显示所有APP，完全自定义
-        "navigation": [
-            {
-                "title": _("人脸业务"),
-                "separator": True, # 显示分割线
-                "items": [
-                    {
-                        "title": _("开始扫描"),
-                        "icon": "center_focus_weak", # Material Icons 图标名
-                        "link": reverse_lazy("face_search"), # 指向自定义视图
-                    },
-                    {
-                        "title": _("批量导入"),
-                        "icon": "upload_file",
-                        "link": reverse_lazy("batch_import_page"),
-                    },
-                ],
-            },
-            {
-                "title": _("数据管理"),
-                "separator": True,
-                "items": [
-                    {
-                        "title": _("人员档案"),
-                        "icon": "people",
-                        "link": reverse_lazy("admin:core_person_changelist"),
-                    },
-                    {
-                        "title": _("系统用户"),
-                        "icon": "admin_panel_settings",
-                        "link": reverse_lazy("admin:core_user_changelist"),
-                    },
-                ],
-            },
-        ],
+# 密码验证器
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        # 验证密码是否与用户信息（如用户名）太相似
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
-    # 颜色配置 (Tailwind 风格)
-    "COLORS": {
-        "primary": {
-            "50": "239 246 255",
-            "100": "219 234 254",
-            "200": "191 219 254",
-            "300": "147 197 253",
-            "400": "96 165 250",
-            "500": "59 130 246",
-            "600": "37 99 235",
-            "700": "29 78 216",
-            "800": "30 64 175",
-            "900": "30 58 138",
-        },
+    {
+        # 验证密码长度（默认最少8位）
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
-}
+    {
+        # 验证是否是常见密码（如 123456, password, qwerty 等）
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        # 验证是否全为数字
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+# 登录成功后，直接跳转到首页（也就是人脸搜索页）
+LOGIN_REDIRECT_URL = '/'
+
+# 退出登录后，跳转到登录页
+LOGOUT_REDIRECT_URL = '/admin/login/'

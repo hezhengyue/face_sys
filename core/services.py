@@ -1,33 +1,16 @@
-import os
-import json
-import base64
 import time
 import requests
-import pandas as pd
-from redis import Redis
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import transaction
 from .models import Person
-from .utils import face_logger, import_logger, system_logger
 
-try:
-    redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
-except Exception as e:
-    system_logger.error(f"Redis Error: {e}")
-    redis_client = None
+logger = logging.getLogger(__name__)
 
-class RedisService:
-    @staticmethod
-    def save_progress(task_id, data):
-        if redis_client:
-            redis_client.setex(f"import_task:{task_id}", 3600, json.dumps(data, ensure_ascii=False))
-
-    @staticmethod
-    def load_progress(task_id):
-        if redis_client:
-            data = redis_client.get(f"import_task:{task_id}")
-            return json.loads(data) if data else None
-        return None
+# 创建全局线程池，最大并发10
+image_download_executor = ThreadPoolExecutor(max_workers=10)
 
 class BaiduService:
     _access_token = None
@@ -47,7 +30,7 @@ class BaiduService:
                 cls._token_expire = now + resp.get("expires_in", 2592000) - 60
                 return cls._access_token
         except Exception as e:
-            face_logger.error(f"Baidu Token Error: {e}")
+            logger.error(f"Baidu Token Error: {e}")
         return None
 
     @classmethod
@@ -61,38 +44,29 @@ class BaiduService:
         except Exception as e:
             return {"error_msg": str(e)}
 
-class PersonService:
+class ImageDownloadService:
     @staticmethod
-    def process_person_data(data, is_batch=False):
+    def _download_worker(person_id, url):
+        """后台线程：下载并保存图片"""
         try:
-            id_card = str(data.get('id_card', '')).strip()
-            name = str(data.get('name', '')).strip()
-            source_url = str(data.get('source_image_url', '')).strip()
-            
-            if not id_card: return False, "身份证为空"
-
-            person, created = Person.objects.get_or_create(id_card=id_card)
-            
-            img_content = None
-            if source_url:
-                try:
-                    resp = requests.get(source_url, timeout=10)
-                    if resp.status_code == 200:
-                        img_content = ContentFile(resp.content)
-                except Exception as e:
-                    if not is_batch: return False, f"下载失败: {e}"
-
-            person.name = name
-            person.class_name = data.get('class_name', '')
-            person.user_type = data.get('user_type', '')
-            person.source_image_url = source_url
-            
-            if img_content:
-                if person.face_image:
-                    person.face_image.delete(save=False)
-                person.face_image.save(f"{id_card}.jpg", img_content, save=False)
-            
-            person.save()
-            return True, "成功"
+            person = Person.objects.get(pk=person_id)
+            print(f"[开始下载] {person.name} - {url}")
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                img_content = ContentFile(resp.content)
+                person.face_image.save(f"{person.id_card}.jpg", img_content, save=True)
+                print(f"[下载成功] {person.name}")
+            else:
+                print(f"[下载失败] HTTP {resp.status_code}")
         except Exception as e:
-            return False, str(e)
+            print(f"[下载异常] {e}")
+
+    @staticmethod
+    def trigger_download(person_id, url):
+        """触发异步下载"""
+        if person_id and url:
+            transaction.on_commit(
+                lambda: image_download_executor.submit(
+                    ImageDownloadService._download_worker, person_id, url
+                )
+            )

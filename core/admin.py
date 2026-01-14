@@ -1,59 +1,199 @@
+# core/admin.py
+
+from django import forms
 from django.contrib import admin
+from django.contrib.admin import AdminSite  # 引入 AdminSite
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm, AuthenticationForm
+from django.contrib.auth import login as auth_login
 from django.utils.html import format_html
-from django.http import HttpResponse
-from django.urls import path
-import pandas as pd
-from datetime import datetime
-# [核心修改] 引入 Unfold 的 ModelAdmin
-from unfold.admin import ModelAdmin
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+from django.contrib.auth.models import Group 
+from django.contrib.auth.admin import GroupAdmin
+# 【新增】导入 render
+from django.shortcuts import render
+
+# 导入 Import/Export
+from import_export.admin import ImportExportModelAdmin
+from import_export import resources, fields
+
 from .models import User, Person
-from .utils import user_logger
+from .services import ImageDownloadService
 
-@admin.register(User)
-class UserAdmin(ModelAdmin): # 继承 Unfold ModelAdmin
-    list_display = ('username', 'department', 'is_active', 'status_badge', 'pwd_error_count')
-    list_filter = ('is_locked', 'department')
-    search_fields = ('username',)
-    actions = ['unlock_users']
+# =========================================================
+# 1. 定义自定义 AdminSite (原 apps.py/admin_site.py 的内容)
+# =========================================================
+class FaceAdminSite(AdminSite):
+    """自定义AdminSite，覆盖登录跳转逻辑"""
+    site_header = '人脸识别系统管理'
+    site_title = '人脸识别系统'
+    index_title = '数据管理'
 
-    # Unfold 特性：使用 badge 显示状态
-    def status_badge(self, obj):
-        if obj.is_locked:
-            return format_html('<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">已锁定</span>')
-        return format_html('<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">正常</span>')
-    status_badge.short_description = "状态"
+    def login(self, request, extra_context=None):
+        if request.method == 'GET' and self.has_permission(request):
+            return HttpResponseRedirect(reverse('home'))
 
-    def unlock_users(self, request, queryset):
-        queryset.update(is_locked=False, pwd_error_count=0, lock_time=None)
-        self.message_user(request, "已解锁选定账户")
-        user_logger.warning(f"管理员[{request.user}]批量解锁账户")
-    unlock_users.short_description = "🔓 解锁账户"
+        context = {
+            **self.each_context(request),
+            **(extra_context or {}),
+            'title': '登录',
+            'app_path': request.get_full_path(),
+            'username': request.user.get_username(),
+        }
 
-@admin.register(Person)
-class PersonAdmin(ModelAdmin):
-    list_display = ('face_preview', 'name', 'id_card', 'class_name', 'user_type', 'create_time')
+        if request.method == 'POST':
+            form = AuthenticationForm(request, data=request.POST)
+            if form.is_valid():
+                user = form.get_user()
+                auth_login(request, user)
+                messages.success(request, f'欢迎回来，{user.username}!')
+                return HttpResponseRedirect(reverse('home'))
+            else:
+                messages.error(request, '用户名或密码错误')
+        else:
+            form = AuthenticationForm(request)
+
+        context['form'] = form
+        return render(request, 'admin/login.html', context)
+
+
+# 实例化站点
+face_admin_site = FaceAdminSite(name='face_admin')
+
+
+# =========================================================
+# 2. 自定义表单和 Admin 配置
+# =========================================================
+
+class CustomUserCreationForm(forms.ModelForm):
+    password_1 = forms.CharField(label="密码", widget=forms.PasswordInput)
+    password_2 = forms.CharField(label="确认密码", widget=forms.PasswordInput)
+    department = forms.CharField(label="部门", required=False)
+    is_staff = forms.BooleanField(label="允许登录后台", required=False, initial=True)
+    is_superuser = forms.BooleanField(label="超级管理员", required=False)
+
+    class Meta:
+        model = User
+        fields = ("username", "department", "is_staff", "is_superuser")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get("password_1")
+        p2 = cleaned_data.get("password_2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password_2", "两次输入的密码不一致")
+        if p1:
+            try:
+                validate_password(p1, self.instance)
+            except ValidationError as error:
+                self.add_error("password_1", error)
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password_1"])
+        user.department = self.cleaned_data.get("department")
+        user.is_staff = self.cleaned_data.get("is_staff")
+        user.is_superuser = self.cleaned_data.get("is_superuser")
+        if commit:
+            user.save()
+        return user
+
+class UserAdmin(BaseUserAdmin):
+    add_form = CustomUserCreationForm
+    form = UserChangeForm
+    list_display = ('username', 'department', 'is_active', 'is_staff', 'is_superuser', 'change_password_btn')
+    list_filter = ('department', 'is_staff', 'is_superuser', 'is_active')
+    search_fields = ('username', 'department')
+    
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('个人信息', {'fields': ('department',)}),
+        ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('重要日期', {'fields': ('last_login', 'date_joined')}),
+    )
+    
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'department', 'password_1', 'password_2'),
+        }),
+        ('权限设置', {
+            'classes': ('wide',),
+            'fields': ('is_staff', 'is_superuser'),
+        }),
+    )
+
+    def change_password_btn(self, obj):
+        try:
+            url = reverse("admin:core_user_password_change", args=[obj.pk])
+        except:
+            url = f"{obj.pk}/password/"
+        return format_html('<a class="button" href="{}" style="padding:3px 10px; background-color:#79aec8; color:white;">修改密码</a>', url)
+    change_password_btn.short_description = "操作"
+
+    def response_add(self, request, obj, post_url_continue=None):
+        if "_continue" not in request.POST and "_addanother" not in request.POST:
+            return HttpResponseRedirect(reverse("admin:core_user_changelist"))
+        return super().response_add(request, obj, post_url_continue)
+
+class PersonResource(resources.ModelResource):
+    name = fields.Field(attribute='name', column_name='姓名')
+    class_name = fields.Field(attribute='class_name', column_name='班级')
+    user_type = fields.Field(attribute='user_type', column_name='用户类型')
+    id_card = fields.Field(attribute='id_card', column_name='身份证号')
+    source_image_url = fields.Field(attribute='source_image_url', column_name='source_image_url')
+
+    class Meta:
+        model = Person
+        import_id_fields = ('id_card',) 
+        fields = ('name', 'class_name', 'user_type', 'id_card', 'source_image_url')
+        skip_unchanged = True
+        raise_errors = True
+
+    def after_save_instance(self, instance, row,** kwargs):
+        dry_run = kwargs.get('dry_run', False)
+        if not dry_run and instance.source_image_url:
+            try:
+                ImageDownloadService.trigger_download(instance.pk, instance.source_image_url)
+            except Exception as e:
+                print(f"Trigger download error: {e}")
+
+class PersonAdmin(ImportExportModelAdmin):
+    resource_class = PersonResource
+    list_display = ('name', 'id_card', 'class_name', 'user_type', 'update_time', 'face_preview')
     list_filter = ('user_type', 'class_name')
     search_fields = ('name', 'id_card')
     list_per_page = 20
-    actions = ['export_excel']
+    readonly_fields = ('face_preview_large', 'create_time', 'update_time')
+
+    fieldsets = (
+        ('基本信息', {'fields': ('name', 'id_card', 'class_name', 'user_type')}),
+        ('人脸信息', {'fields': ('face_image', 'face_preview_large', 'source_image_url')}),
+        ('时间记录', {'fields': ('create_time', 'update_time')}),
+    )
 
     def face_preview(self, obj):
         if obj.face_image:
-            # 使用 Tailwind 样式
-            return format_html(
-                '<img src="{}" class="h-10 w-10 rounded-full object-cover border border-gray-200" onclick="window.open(this.src)" style="cursor:pointer"/>', 
-                obj.face_image.url
-            )
+            return format_html('<img src="{}" style="height:50px; border-radius:4px;" />', obj.face_image.url)
         return "-"
     face_preview.short_description = "照片"
 
-    def export_excel(self, request, queryset):
-        # ... (导出逻辑保持不变) ...
-        data = list(queryset.values('name', 'id_card', 'class_name', 'user_type'))
-        df = pd.DataFrame(data)
-        response = HttpResponse(content_type='application/vnd.ms-excel')
-        fname = f"Export_{datetime.now().strftime('%Y%m%d')}.xlsx"
-        response['Content-Disposition'] = f'attachment; filename={fname}'
-        df.to_excel(response, index=False)
-        return response
-    export_excel.short_description = "📂 导出Excel"
+    def face_preview_large(self, obj):
+        if obj.face_image:
+            return format_html('<img src="{}" style="max-width:300px;" />', obj.face_image.url)
+        return "暂无照片"
+    face_preview_large.short_description = "照片预览"
+
+
+# =========================================================
+# 3. 注册所有模型
+# =========================================================
+# 这里是同一个文件，所以一定会被执行
+face_admin_site.register(User, UserAdmin)
+face_admin_site.register(Person, PersonAdmin)
+face_admin_site.register(Group, GroupAdmin)
