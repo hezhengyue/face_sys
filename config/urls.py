@@ -10,7 +10,6 @@ urlpatterns = [
     path('', RedirectView.as_view(url='/admin/')),
 
     # 2. 【移动】给扫描页面一个新的路径，不再占用根目录
-    #    SimpleUI 的菜单将链接到这里
     path('face-scan/', views.face_search_view, name='face_search'),
 
     # 3. 原有配置保持不变

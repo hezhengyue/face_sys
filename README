@@ -36,3 +36,4 @@ python manage.py axes_reset_username <用户名>
 
 # django-simpleui静态文件克隆
 python3 manage.py collectstatic
+
