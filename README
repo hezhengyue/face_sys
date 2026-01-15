@@ -20,23 +20,42 @@ cat  /etc/docker/daemon.json
 docker info
 
 
-
 # 初始环境
 git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
+mkdir -p logs/face logs/import logs/system logs/user logs/ningx
+cd docker
+ln -s ../.env .env
 docker compose up -d --build
 docker compose ps
-docker compose exec web python manage.py makemigrations
-docker compose exec web python manage.py migrate
+docker compose exec web python manage.py makemigrations core
+docker compose exec web python manage.py migrate core
+docker compose exec web python manage.py migrate 
 docker compose exec web python manage.py collectstatic --noinput
 docker compose exec web python manage.py createsuperuser
 
-docker compose restart web
-docker compose exec web python manage.py migrate
 
+# 重启
+docker cmpose down
+docker compose up -d --build
 
+# 删除容器
+# 1. 停止并删除 db、web 容器（保留 nginx/redis，若需全删可去掉 --filter）
+docker compose rm -sf --filter "name=django_db" --filter "name=django_app"
+# 2. 删除 db_data 数据卷（彻底清空 MySQL 数据，核心！）
+docker volume rm docker_db_data  # 注意：卷名格式是「目录名_卷名」，docker 目录对应 docker_db_data
+# 验证：确认数据卷已删除
+docker volume ls | grep db_data  # 无输出即为删除成功
 
-
+# 删除镜像
+# 1. 停止并删除所有容器（包括旧容器）
+docker compose down
+# 2. 删除旧镜像（避免缓存）
+docker rmi -f $(docker images | grep "web" | awk '{print $3}')  # 删除 web 镜像
+# 3. 清理 Docker 构建缓存（彻底清空所有构建缓存）
+docker builder prune -af  # -a 清理所有缓存，-f 强制确认
+# 验证缓存已清理
+docker builder prune -f  # 输出「Total reclaimed space: 0B」即为清空
 
 
 # Firewalld
@@ -47,14 +66,10 @@ sudo firewall-cmd --reload
 
 # 用户锁定处理
 # 解锁所有
-python manage.py axes_reset
+docker compose exec web python manage.py axes_reset
 # 解锁单用户
-python manage.py axes_reset_username <用户名>
+docker compose exec web python manage.py axes_reset_username <用户名>
 # 手动解锁
 '''进入后台首页，找到Access attempts,找到对应用户名/IP 的最近失败记录,删除这些记录。
 原理：Axes 是通过计算数据库里的失败尝试记录来判断是否锁定的。把失败记录删掉，计数归零，自然就解锁了。'''
-
-
-# django-simpleui静态文件克隆
-python3 manage.py collectstatic
 

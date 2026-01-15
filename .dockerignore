@@ -2,23 +2,26 @@
 .git
 .gitignore
 
-# 忽略本地虚拟环境 (非常重要！)
+# 忽略本地虚拟环境
 venv/
 env/
 anaconda3/
 
 # 忽略 Python 缓存
-__pycache__
+__pycache__/
 *.pyc
-**/migrations/
 
-# 忽略日志文件 (因为我们是挂载进去的，不需要构建进去)
+# 关键修正：只过滤迁移文件的 .py（除了 __init__.py），保留 migrations 目录
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# 忽略日志/媒体/静态文件（挂载目录）
 logs/
 media/
 static/
 
-# 忽略 Docker 配置目录本身 (可选，防止把配置拷进容器里，虽然拷进去也没事)
+# 忽略 Docker 配置目录
 docker/
 
-# 忽略配置
+# 忽略敏感配置
 .env

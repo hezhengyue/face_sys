@@ -7,8 +7,19 @@ env_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=env_path)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-key')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*']
+DEBUG = str(os.getenv('DEBUG', 'True')).strip().lower() == 'true'
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://10.10.9.52',
+    'http://localhost',
+    'http://127.0.0.1',
+]
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '10.10.9.52']
+# 另外，建议加上这个配置，告诉 Django 它是运行在代理后面的
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+
 
 # 应用定义
 INSTALLED_APPS = [
@@ -114,6 +125,10 @@ STATIC_URL = 'static/'
 
 # STATIC_ROOT 是 collectstatic 的存放目录，也是 Nginx 读取的目录
 STATIC_ROOT = BASE_DIR / 'static'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'assets'),  # 核心：指定static文件夹的绝对路径
+]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

@@ -5,6 +5,7 @@
 
 {% block content %}
 <div id="content-main">
+    <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
     <div style="padding: 20px; background: white; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
     
 
@@ -86,6 +87,8 @@
         if (!imageBase64) return;
         status.innerText = "正在识别...";
         status.style.color = "#417690";
+
+        const csrfToken = document.getElementById('csrfToken').value;
 
         fetch('{% url "api_search_face" %}', {
             method: 'POST',
