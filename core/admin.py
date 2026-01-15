@@ -1,20 +1,16 @@
-from django import forms
 from django.contrib import admin
-from django.contrib.admin import AdminSite
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.forms import UserChangeForm, AuthenticationForm
-from django.contrib.auth import login as auth_login
+from django.contrib.auth.models import Group
 from django.utils.html import format_html
 from django.urls import reverse
 from django.http import HttpResponseRedirect
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.forms import UserChangeForm
 from django.contrib import messages
-from django.shortcuts import render 
-from django.contrib.auth.models import Group 
-from django.contrib.auth.admin import GroupAdmin
+from django.core.exceptions import ValidationError
+from django.contrib.auth.password_validation import validate_password
+from django import forms
 
-# 导入第三方管理类
+# 第三方库
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from auditlog.models import LogEntry
@@ -22,46 +18,21 @@ from auditlog.admin import LogEntryAdmin
 from axes.models import AccessLog
 from axes.admin import AccessLogAdmin
 
+# 本地模型
 from .models import User, Person
 from .services import ImageDownloadService
 from .utils import system_logger
 
-# 1. 自定义 Site
-class FaceAdminSite(AdminSite):
-    site_header = '人脸识别系统管理'
-    site_title = '人脸识别系统'
-    index_title = '数据管理'
+# =========================================================
+# 1. 标准化配置：直接修改默认 admin.site 的标题
+# =========================================================
+admin.site.site_header = '人脸识别系统管理'
+admin.site.site_title = '人脸识别系统'
+admin.site.index_title = '数据管理'
 
-    def login(self, request, extra_context=None):
-        if request.method == 'GET' and self.has_permission(request):
-            return HttpResponseRedirect(reverse('home'))
-
-        context = {
-            **self.each_context(request),
-            **(extra_context or {}),
-            'title': '登录',
-            'app_path': request.get_full_path(),
-            'username': request.user.get_username(),
-        }
-
-        if request.method == 'POST':
-            form = AuthenticationForm(request, data=request.POST)
-            if form.is_valid():
-                user = form.get_user()
-                auth_login(request, user)
-                messages.success(request, f'欢迎回来，{user.username}!')
-                return HttpResponseRedirect(reverse('home'))
-            else:
-                messages.error(request, '用户名或密码错误')
-        else:
-            form = AuthenticationForm(request)
-
-        context['form'] = form
-        return render(request, 'admin/login.html', context)
-
-face_admin_site = FaceAdminSite(name='face_admin')
-
-# 2. 用户管理 (UserAdmin)
+# =========================================================
+# 2. 用户管理 (UserAdmin) - 保持不变
+# =========================================================
 class CustomUserCreationForm(forms.ModelForm):
     password_1 = forms.CharField(label="密码", widget=forms.PasswordInput)
     password_2 = forms.CharField(label="确认密码", widget=forms.PasswordInput)
@@ -72,6 +43,7 @@ class CustomUserCreationForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ("username", "department", "is_staff", "is_superuser")
+        # fields = ("username", "department")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -99,18 +71,19 @@ class CustomUserCreationForm(forms.ModelForm):
 class UserAdmin(BaseUserAdmin):
     add_form = CustomUserCreationForm
     form = UserChangeForm
-    list_display = ('username', 'department', 'is_active', 'is_staff', 'is_superuser', 'change_password_btn')
+    list_display = ('username', 'department', 'is_active', 'is_staff', 'is_superuser', 'last_login')
     list_filter = ('department', 'is_staff', 'is_superuser', 'is_active')
     search_fields = ('username', 'department')
     
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
+        ('用户', {'fields': ('username', 'password')}),
         ('个人信息', {'fields': ('department',)}),
-        ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('重要日期', {'fields': ('last_login', 'date_joined')}),
+        # ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
+        # ('重要日期', {'fields': ('last_login', 'date_joined')}),
     )
     add_fieldsets = (
-        (None, {
+        ('用户', {
             'classes': ('wide',),
             'fields': ('username', 'department', 'password_1', 'password_2'),
         }),
@@ -120,20 +93,10 @@ class UserAdmin(BaseUserAdmin):
         }),
     )
 
-    def change_password_btn(self, obj):
-        try:
-            url = reverse("admin:core_user_password_change", args=[obj.pk])
-        except:
-            url = f"{obj.pk}/password/"
-        return format_html('<a class="button" href="{}" style="padding:3px 10px; background-color:#79aec8; color:white;">修改密码</a>', url)
-    change_password_btn.short_description = "操作"
 
-    def response_add(self, request, obj, post_url_continue=None):
-        if "_continue" not in request.POST and "_addanother" not in request.POST:
-            return HttpResponseRedirect(reverse("admin:core_user_changelist"))
-        return super().response_add(request, obj, post_url_continue)
-
-# 3. 人员管理 (PersonAdmin)
+# =========================================================
+# 3. 人员管理 (PersonAdmin) - 保持不变
+# =========================================================
 class PersonResource(resources.ModelResource):
     name = fields.Field(attribute='name', column_name='姓名')
     class_name = fields.Field(attribute='class_name', column_name='班级')
@@ -148,7 +111,7 @@ class PersonResource(resources.ModelResource):
         skip_unchanged = True
         raise_errors = True
 
-    def after_save_instance(self, instance, row,** kwargs):
+    def after_save_instance(self, instance, row, **kwargs):
         dry_run = kwargs.get('dry_run', False)
         if not dry_run and instance.source_image_url:
             try:
@@ -163,7 +126,7 @@ class PersonAdmin(ImportExportModelAdmin):
     search_fields = ('name', 'id_card')
     list_per_page = 20
     readonly_fields = ('face_preview_large', 'create_time', 'update_time')
-
+    
     fieldsets = (
         ('基本信息', {'fields': ('name', 'id_card', 'class_name', 'user_type')}),
         ('人脸信息', {'fields': ('face_image', 'face_preview_large', 'source_image_url')}),
@@ -172,21 +135,39 @@ class PersonAdmin(ImportExportModelAdmin):
 
     def face_preview(self, obj):
         if obj.face_image:
-            return format_html('<img src="{}" style="height:50px; border-radius:4px;" />', obj.face_image.url)
+            return format_html('<img src="{}" style="max-height:50px; border-radius:4px;" />', obj.face_image.url)
         return "-"
     face_preview.short_description = "照片"
 
     def face_preview_large(self, obj):
         if obj.face_image:
-            return format_html('<img src="{}" style="max-width:300px;" />', obj.face_image.url)
+            return format_html('<img src="{}" style="max-width:200px;" />', obj.face_image.url)
         return "暂无照片"
     face_preview_large.short_description = "照片预览"
 
-# 4. 注册所有模型到自定义后台
-face_admin_site.register(User, UserAdmin)
-face_admin_site.register(Person, PersonAdmin)
-face_admin_site.register(Group, GroupAdmin)
-# 注册 Auditlog (数据审计)
-face_admin_site.register(LogEntry, LogEntryAdmin)
+# =========================================================
+# 4. 注册所有模型到默认后台 (admin.site)
+# =========================================================
+# 先取消注册（防止重复注册报错），然后再注册
+try:
+    admin.site.unregister(User)
+except admin.sites.NotRegistered:
+    pass
+
+try:
+    admin.site.unregister(Group)
+except admin.sites.NotRegistered:
+    pass
+
+# 注册核心业务模型
+admin.site.register(User, UserAdmin)
+admin.site.register(Person, PersonAdmin)
+admin.site.register(Group) # 使用默认的 GroupAdmin 即可，除非你想自定义
+
+# 注册 Auditlog (数据审计) - 检查是否已注册，防止重复
+if not admin.site.is_registered(LogEntry):
+    admin.site.register(LogEntry, LogEntryAdmin)
+
 # 注册 Axes (安全日志)
-face_admin_site.register(AccessLog, AccessLogAdmin)
+if not admin.site.is_registered(AccessLog):
+    admin.site.register(AccessLog, AccessLogAdmin)
