@@ -12,6 +12,7 @@ ALLOWED_HOSTS = ['*']
 
 # 应用定义
 INSTALLED_APPS = [
+    'simpleui', 
     "import_export",                 # 导入导出
     
     'django.contrib.admin',
@@ -122,5 +123,63 @@ LOGS_DAYS = int(os.getenv('LOGS_DAYS', 7))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
+
+
+
+# === SimpleUI 配置 ===
+SIMPLEUI_HOME_INFO = False  # 关闭首页的 SimpleUI 推广信息
+SIMPLEUI_ANALYSIS = False   # 关闭统计分析
+SIMPLEUI_STATIC_OFFLINE = True
+
+SIMPLEUI_ICON = {
+    'Axes': 'far fa-eye',
+    'Access attempts': 'far fa-bookmark',
+    'Access failures': 'far fa-bookmark',
+    'Access logs': 'far fa-bookmark',
+    '核心业务': 'far fa-bars',
+    '人员档案': 'far fa-person',
+    '人脸识别': 'fas fa-camera',
+}
+
+# 自定义菜单配置
+SIMPLEUI_CONFIG = {
+    'system_keep': True,
+    'menu_display': ['人脸识别', '认证和授权', 'Audit log', 'Axes', '核心业务'],
+    'dynamic': True,
+    'menus': [
+        {
+            'name': '人脸识别',
+            'icon': 'fas fa-camera',
+            'models': [
+                {
+                    'name': '开始识别',
+                    'url': '/face-scan/', 
+                    'icon': 'fas fa-search'
+                }
+            ],
+            # 'name': 'Axes',
+            # 'icon': 'fas fa-camera',
+            # 'models': [
+            #     {
+            #         'name': '访问尝试',
+            #         'url': '/admin/axes/accessattempt/', 
+            #         'icon': 'fas fa-search'
+            #     },
+            #     {
+            #         'name': '访问失败',
+            #         'url': '/admin/axes/accessfailurelog/', 
+            #         'icon': 'fas fa-search'
+            #     },
+            #     {
+            #         'name': '访问记录',
+            #         'url': '/admin/axes/accesslog/', 
+            #         'icon': 'fas fa-search'
+            #     },
+            # ],
+        }
+    ]
+}
+
+

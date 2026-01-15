@@ -34,6 +34,13 @@ class Person(models.Model):
     def __str__(self):
         return f"{self.name} ({self.id_card})"
 
+# 1. 定义一个假模型，专门用于在后台生成菜单
+class FaceScan(Person):
+    class Meta:
+        proxy = True  # 代理模型，不创建新表
+        verbose_name = '人脸识别'        # 菜单子项名称
+        verbose_name_plural = '人脸识别' # 复数名
+
 # === 注册审计 ===
 # 这两行代码会让 django-auditlog 自动监听增删改
 auditlog.register(User)

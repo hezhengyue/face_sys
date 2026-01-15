@@ -30,5 +30,9 @@ python manage.py axes_reset
 # 解锁单用户
 python manage.py axes_reset_username <用户名>
 # 手动解锁
-'''进入后台首页，找到Access attempts,找到对应用户名/IP 的最近失败记录。删除这些记录。
+'''进入后台首页，找到Access attempts,找到对应用户名/IP 的最近失败记录,删除这些记录。
 原理：Axes 是通过计算数据库里的失败尝试记录来判断是否锁定的。把失败记录删掉，计数归零，自然就解锁了。'''
+
+
+# django-simpleui静态文件克隆
+python3 manage.py collectstatic

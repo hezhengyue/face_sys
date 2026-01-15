@@ -9,6 +9,9 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django import forms
+from django.apps import apps
+from django.contrib.admin import AdminSite
+from django.utils.text import capfirst
 
 # 第三方库
 from import_export.admin import ImportExportModelAdmin
@@ -19,19 +22,20 @@ from axes.models import AccessLog
 from axes.admin import AccessLogAdmin
 
 # 本地模型
-from .models import User, Person
+from .models import User, Person, FaceScan
 from .services import ImageDownloadService
 from .utils import system_logger
+from .views import face_search_view   # 导入你的扫描视图
 
 # =========================================================
-# 1. 标准化配置：直接修改默认 admin.site 的标题
+# 标准化配置：直接修改默认 admin.site 的标题
 # =========================================================
 admin.site.site_header = '人脸识别系统管理'
 admin.site.site_title = '人脸识别系统'
 admin.site.index_title = '数据管理'
 
 # =========================================================
-# 2. 用户管理 (UserAdmin) - 保持不变
+# 用户管理 (UserAdmin)
 # =========================================================
 class CustomUserCreationForm(forms.ModelForm):
     password_1 = forms.CharField(label="密码", widget=forms.PasswordInput)
@@ -95,7 +99,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 # =========================================================
-# 3. 人员管理 (PersonAdmin) - 保持不变
+# 人员管理 (PersonAdmin)
 # =========================================================
 class PersonResource(resources.ModelResource):
     name = fields.Field(attribute='name', column_name='姓名')
@@ -145,10 +149,38 @@ class PersonAdmin(ImportExportModelAdmin):
         return "暂无照片"
     face_preview_large.short_description = "照片预览"
 
+
 # =========================================================
-# 4. 注册所有模型到默认后台 (admin.site)
+# 人脸识别菜单入口配置
 # =========================================================
-# 先取消注册（防止重复注册报错），然后再注册
+@admin.register(FaceScan)
+class FaceScanAdmin(admin.ModelAdmin):
+    """
+    这是一个虚拟的 Admin，只为了在侧边栏生成菜单。
+    点击该菜单时，直接跳转到自定义的人脸扫描页面。
+    """
+    def get_model_perms(self, request):
+        """
+        确保只有有权限的用户能看到这个菜单
+        """
+        return {
+            'add': False,
+            'change': False,
+            'delete': False,
+            'view': True,
+        }
+
+    def changelist_view(self, request, extra_context=None):
+        """
+        重写列表视图：当点击菜单进入此视图时，
+        直接重定向到 urls.py 中定义的 'face_search' 路由
+        """
+        return HttpResponseRedirect(reverse('face_search'))
+
+# =========================================================
+# 注册所有模型到后台（修正重复注册问题）
+# =========================================================
+# 先取消注册（防止重复注册报错）
 try:
     admin.site.unregister(User)
 except admin.sites.NotRegistered:
@@ -162,9 +194,9 @@ except admin.sites.NotRegistered:
 # 注册核心业务模型
 admin.site.register(User, UserAdmin)
 admin.site.register(Person, PersonAdmin)
-admin.site.register(Group) # 使用默认的 GroupAdmin 即可，除非你想自定义
+admin.site.register(Group)  # 使用默认的 GroupAdmin
 
-# 注册 Auditlog (数据审计) - 检查是否已注册，防止重复
+# 注册 Auditlog (数据审计) - 检查是否已注册
 if not admin.site.is_registered(LogEntry):
     admin.site.register(LogEntry, LogEntryAdmin)
 

@@ -4,28 +4,36 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import admin
 from django.http import HttpResponseRedirect
+from django.views.decorators.clickjacking import xframe_options_sameorigin 
+import json
 from .services import BaiduService
 from .models import Person
 from .utils import face_logger, system_logger
-import json
+from .models import FaceScan # 导入刚才定义的模型
 
-
+# =========================================================
+# 人脸识别页面视图
+# =========================================================
 @staff_member_required(login_url='/admin/login/')
 def face_search_view(request):
-    # 这里不需要传 site_title 等参数了，因为不是继承 admin/base_site.html，或者让它用默认值
-    return render(request, 'admin/face_search.html', {
-        'title': '人脸识别搜索', 
-        # 兼容一下模板里可能用到的变量
-        'site_title': '人脸识别系统',
-        'site_header': '人脸识别系统',
-        # === 核心修改：添加这行代码 ===
-        'has_permission': True,  
-        # ===========================
-        
-        'is_popup': False,
-        'user': request.user,  # 确保 user 对象传入（通常 request context 会自动包含，但显式加上更保险）
-    })
+    # 构造 context
+    context = {
+        'title': '人脸识别扫描',
+        'site_title': admin.site.site_title,
+        'site_header': admin.site.site_header,
+        'has_permission': True,
+        'user': request.user,
+        # === 下面这几行是为了让原生 Admin 的面包屑导航正常显示 ===
+        # 告诉模板：我们现在处于 "Core" 应用下的 "FaceScan" 页面
+        'opts': FaceScan._meta,  
+        'app_label': 'core',
+        # ====================================================
+    }
+    return render(request, 'admin/face_search.html', context)
 
+# =========================================================
+# 人脸识别API接口
+# =========================================================
 @csrf_exempt
 @staff_member_required(login_url='/admin/login/')
 def api_search_face(request):
@@ -73,25 +81,3 @@ def api_search_face(request):
         system_logger.error(f"API系统错误: {e}")
         return JsonResponse({'status': 'error', 'msg': '系统内部错误'}, status=500)
 
-
-def custom_login(request, extra_context=None):
-    """
-    自定义登录视图：
-    复用 Django 原生登录逻辑，但强制登录后跳转到首页
-    """
-    # 1. 如果用户已经登录，直接踢回首页
-    if request.method == 'GET' and request.user.is_authenticated:
-        return HttpResponseRedirect('/')
-
-    # 2. 调用 Django 原生的 Admin 登录视图
-    #    这样能保留原生的界面、验证逻辑和错误提示
-    response = admin.site.login(request, extra_context)
-
-    # 3. 关键点：检测是否登录成功
-    #    如果请求是 POST (提交表单) 并且状态码是 302 (跳转)，说明登录成功了
-    if request.method == 'POST' and response.status_code == 302:
-        # 强制修改跳转地址为首页 '/'
-        return HttpResponseRedirect('/')
-
-    # 4. 如果登录失败或者只是 GET 请求，返回原生响应 (显示登录页或报错)
-    return response

@@ -1,22 +1,20 @@
-# config/urls.py
 from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from core import views  # 导入刚才写的 views
+from django.views.generic import RedirectView  # <---【新增】引入重定向视图
+from core import views
 
 urlpatterns = [
-    # 1. 【新增】拦截 Admin 登录请求，使用我们自定义的跳转逻辑
-    #    注意：这行必须放在 admin.site.urls 之前！
-    path('admin/login/', views.custom_login),
+    # 1. 【核心修改】访问根目录 / 时，直接重定向到 /admin/
+    path('', RedirectView.as_view(url='/admin/')),
 
-    # 2. 标准 Django Admin (处理剩下的 /admin/logout, /admin/auth/ 等请求)
+    # 2. 【移动】给扫描页面一个新的路径，不再占用根目录
+    #    SimpleUI 的菜单将链接到这里
+    path('face-scan/', views.face_search_view, name='face_search'),
+
+    # 3. 原有配置保持不变
     path('admin/', admin.site.urls),
-    
-    # 3. 首页
-    path('', views.face_search_view, name='home'),
-    
-    # 4. API
     path('api/search/', views.api_search_face, name='api_search_face'),
 ]
 
