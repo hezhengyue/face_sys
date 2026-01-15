@@ -1,27 +1,48 @@
-# 创建目录
-mkdir face_sys
+# docker
+yum install -y yum-utils device-mapper-persistent-data lvm2
+yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+sudo yum -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl start docker 
+systemctl enable docker 
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": ["https://registry.cn-hangzhou.aliyuncs.com",
+  "https://docker.m.daocloud.io",
+  "https://docker.1ms.run"
+  ],
+  "exec-opts": ["native.cgroupdriver=systemd"]
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+cat  /etc/docker/daemon.json
+docker info
+
+
+
+# 初始环境
+git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
-#生成django的默认项目config，主要放django的默认配置，注意命令最后有一个点 "."，代表在当前目录生成
-django-admin startproject config .
-# 创建应用，用于实际业务
-python manage.py startapp core
-# 环境变量
-pip install python-dotenv
-touch .env
-touch .gitignore
-echo ".env" >> .gitignore
-echo "media" >> .gitignore
-echo "logs" >> .gitignore
+docker compose up -d --build
+docker compose ps
+docker compose exec web python manage.py makemigrations
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py collectstatic --noinput
+docker compose exec web python manage.py createsuperuser
 
-# 初始化数据库
-python manage.py makemigrations
-# 迁移数据库
-python manage.py migrate
-# 创建超级用户
-python manage.py createsuperuser
-# 运行服务器
-python manage.py runserver
+docker compose restart web
+docker compose exec web python manage.py migrate
 
+
+
+
+
+
+# Firewalld
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
 
 
 # 用户锁定处理

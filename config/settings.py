@@ -66,12 +66,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('MYSQL_DB', 'face_db'),
+        'NAME': os.getenv('MYSQL_DATABASE', 'db'),
         'USER': os.getenv('MYSQL_USER', 'root'),
         'PASSWORD': os.getenv('MYSQL_PASSWORD', '1234'),
         'HOST': os.getenv('MYSQL_HOST', '127.0.0.1'),
-        'PORT': os.getenv('MYSQL_PORT', '3306'),
-        'OPTIONS': {'charset': 'utf8mb4'},
+        'PORT': int(os.getenv('MYSQL_PORT', 3306)),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
 
@@ -79,7 +81,7 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL','redis://127.0.0.1:6379/0'),
+        'LOCATION': os.getenv('REDIS_URL','redis://127.0.0.1:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
@@ -93,7 +95,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 AXES_FAILURE_LIMIT = 5           # 错误5次锁定
 AXES_COOLOFF_TIME = 1            # 锁定1小时
-AXES_LOCK_OUT_BY_COMBINATION_USER_AND_IP = True
+AXES_LOCKOUT_STRATEGY = 'combination_user_and_ip'
 AXES_RESET_ON_SUCCESS = True
 
 # === Auditlog 审计配置 ===
@@ -109,7 +111,9 @@ USE_I18N = True
 USE_TZ = False 
 
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# STATIC_ROOT 是 collectstatic 的存放目录，也是 Nginx 读取的目录
+STATIC_ROOT = BASE_DIR / 'static'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -126,6 +130,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
 
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',  # 只在控制台打印警告及以上，业务日志走 loguru
+    },
+}
 
 
 # === SimpleUI 配置 ===
@@ -158,26 +177,7 @@ SIMPLEUI_CONFIG = {
                     'url': '/face-scan/', 
                     'icon': 'fas fa-search'
                 }
-            ],
-            # 'name': 'Axes',
-            # 'icon': 'fas fa-camera',
-            # 'models': [
-            #     {
-            #         'name': '访问尝试',
-            #         'url': '/admin/axes/accessattempt/', 
-            #         'icon': 'fas fa-search'
-            #     },
-            #     {
-            #         'name': '访问失败',
-            #         'url': '/admin/axes/accessfailurelog/', 
-            #         'icon': 'fas fa-search'
-            #     },
-            #     {
-            #         'name': '访问记录',
-            #         'url': '/admin/axes/accesslog/', 
-            #         'icon': 'fas fa-search'
-            #     },
-            # ],
+            ]
         }
     ]
 }

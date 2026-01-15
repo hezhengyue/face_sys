@@ -1,0 +1,24 @@
+# 忽略 git 数据
+.git
+.gitignore
+
+# 忽略本地虚拟环境 (非常重要！)
+venv/
+env/
+anaconda3/
+
+# 忽略 Python 缓存
+__pycache__
+*.pyc
+**/migrations/
+
+# 忽略日志文件 (因为我们是挂载进去的，不需要构建进去)
+logs/
+media/
+static/
+
+# 忽略 Docker 配置目录本身 (可选，防止把配置拷进容器里，虽然拷进去也没事)
+docker/
+
+# 忽略配置
+.env
