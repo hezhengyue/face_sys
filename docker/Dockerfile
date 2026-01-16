@@ -26,7 +26,7 @@ RUN pip install --upgrade pip \
 COPY . .
 
 # 5. 创建必要的运行时目录
-RUN mkdir -p logs/face logs/import logs/system logs/user static media
+RUN mkdir -p logs/face logs/import logs/system logs/user static media assets
 
 # 6. 设置默认命令 (会被 docker-compose 覆盖，但作为备份很好)
 CMD ["gunicorn", "config.wsgi:application", "-b", "0.0.0.0:8000", "--workers", "4", "--timeout", "300"]

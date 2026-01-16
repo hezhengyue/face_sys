@@ -3,8 +3,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 生产环境通常由 Docker 注入环境变量，这里是为了本地开发方便
 env_path = BASE_DIR / '.env'
-load_dotenv(dotenv_path=env_path)
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'ZA52Py77QHBeLhGBmAwCKyFN3BQM7CHM')
 
@@ -19,8 +22,12 @@ ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',') if host.s
 
 csrf_trusted_str = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1')
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_str.split(',') if origin.strip()]
-# 另外，建议加上这个配置，告诉 Django 它是运行在代理后面的
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# === Nginx/Docker 代理设置 (关键) ===
+# 告诉 Django 它是运行在反向代理(Nginx)后面的，信任 X-Forwarded-Proto 头
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 如果全程 HTTPS，建议开启下面两项；如果是 HTTP，保持 False
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 
@@ -123,20 +130,23 @@ AUTH_USER_MODEL = 'core.User'
 LANGUAGE_CODE = 'zh-hans'
 TIME_ZONE = 'Asia/Shanghai'
 USE_I18N = True
+# 提示：USE_TZ=False 表示使用本地时间存储，不使用 UTC。国内项目通常这样做没问题。
 USE_TZ = False 
 
-STATIC_URL = 'static/'
 
+# 静态文件目录管理
+STATIC_URL = 'static/'
 # STATIC_ROOT 是 collectstatic 的存放目录，也是 Nginx 读取的目录
 STATIC_ROOT = BASE_DIR / 'static'
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'assets'),  # 核心：指定static文件夹的绝对路径
-]
+# ⚠️ 修复：增加检测，避免 assets 目录不存在时报错
+STATICFILES_DIRS = []
+if (BASE_DIR / 'assets').exists():
+    STATICFILES_DIRS.append(BASE_DIR / 'assets')
 
+# 媒体文件管理
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-LOG_ROOT = BASE_DIR / 'logs' # 日志根目录
 
 # 业务变量
 FACE_API_KEY = os.getenv('FACE_API_KEY')
@@ -144,13 +154,14 @@ FACE_SECRET_KEY = os.getenv('FACE_SECRET_KEY')
 FACE_GROUP_ID = os.getenv('FACE_GROUP_ID')
 LOGS_DAYS = int(os.getenv('LOGS_DAYS', 7))
 
+# 上传大文件
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# 登录登出跳转
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
 
-
-
+# 日志配置 (Docker下推荐输出到 console)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -161,10 +172,9 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'WARNING',  # 只在控制台打印警告及以上，业务日志走 loguru
+        'level': 'WARNING',  # 生产环境只打印 WARNING 以上，调试改为 INFO
     },
 }
-
 
 # === SimpleUI 配置 ===
 SIMPLEUI_HOME_INFO = False  # 关闭首页的 SimpleUI 推广信息
@@ -200,5 +210,3 @@ SIMPLEUI_CONFIG = {
         }
     ]
 }
-
-

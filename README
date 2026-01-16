@@ -1,4 +1,4 @@
-# docker
+# docker 
 yum install -y yum-utils device-mapper-persistent-data lvm2
 yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 sudo yum -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -7,11 +7,17 @@ systemctl enable docker
 sudo mkdir -p /etc/docker
 sudo tee /etc/docker/daemon.json <<-'EOF'
 {
-  "registry-mirrors": ["https://registry.cn-hangzhou.aliyuncs.com",
-  "https://docker.m.daocloud.io",
-  "https://docker.1ms.run"
+  "registry-mirrors": [
+    "https://registry.cn-hangzhou.aliyuncs.com",
+    "https://docker.m.daocloud.io",
+    "https://docker.1ms.run"
   ],
-  "exec-opts": ["native.cgroupdriver=systemd"]
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  }
 }
 EOF
 sudo systemctl daemon-reload
@@ -20,64 +26,54 @@ cat  /etc/docker/daemon.json
 docker info
 
 
-# 初始环境
+# 首次部署流程
+# 注意：请确保本地开发环境已生成 migrations 文件并提交到 Git。生产环境不执行 makemigrations。
 git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
-mkdir -p logs/face logs/import logs/system logs/user logs/ningx
+cp .env.example .env
+vi .env 
+mkdir -p logs/face logs/import logs/system logs/user logs/nginx
 cd docker
 ln -s ../.env .env
-docker-compose build --no-cache web
+docker compose build --no-cache
 docker compose up -d
 docker compose ps
-docker compose exec web python manage.py makemigrations core
-docker compose exec web python manage.py migrate core
-docker compose exec web python manage.py migrate 
-docker compose exec web python manage.py collectstatic --noinput
 docker compose exec web python manage.py createsuperuser
 
 
-# 重启
-docker cmpose down
+# 日常运维
+# 代码更新与发布，当 git 仓库有新代码提交时（包含新的 migration 文件）：
+cd face_sys
+git pull
+cd docker
 docker compose up -d --build
-
-# 重构
+# 清理未使用的旧镜像 (可选)
+docker image prune -f
+# 如果遇到缓存问题严重，需要彻底重置：
+cd face_sys/docker
 docker compose down
 docker rmi -f docker-web
-docker compose build --no-cache web
+docker compose build --no-cache
 docker compose up -d
-docker exec -it django_web ls -la /app | grep .env
-
-# 删除容器
-# 1. 停止并删除 db、web 容器（保留 nginx/redis，若需全删可去掉 --filter）
-docker compose rm -sf --filter "name=django_db" --filter "name=django_app"
-# 2. 删除 db_data 数据卷（彻底清空 MySQL 数据，核心！）
-docker volume rm docker_db_data  # 注意：卷名格式是「目录名_卷名」，docker 目录对应 docker_db_data
-# 验证：确认数据卷已删除
-docker volume ls | grep db_data  # 无输出即为删除成功
-
-# 删除镜像
-# 1. 停止并删除所有容器（包括旧容器）
-docker compose down
-# 2. 删除旧镜像（避免缓存）
-docker rmi -f $(docker images | grep "web" | awk '{print $3}')  # 删除 web 镜像
-# 3. 清理 Docker 构建缓存（彻底清空所有构建缓存）
-docker builder prune -af  # -a 清理所有缓存，-f 强制确认
-# 验证缓存已清理
-docker builder prune -f  # 输出「Total reclaimed space: 0B」即为清空
+docker exec -it django_web cat /app/.env
+# 如果不要之前的mysql数据
+docker compose down -v
 
 
-# Firewalld
+# 防火墙设置 (Firewalld)
 sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --permanent --add-service=https
 sudo firewall-cmd --reload
 
-
-# 用户锁定处理
-# 解锁所有
-docker compose exec web python manage.py axes_reset
-# 解锁单用户
+# 账号安全 (Axes 锁定处理)
+# 当用户因多次登录失败被锁定时：
+# 命令行解锁：
+# 解锁指定用户
 docker compose exec web python manage.py axes_reset_username <用户名>
-# 手动解锁
-'''进入后台首页，找到Access attempts,找到对应用户名/IP 的最近失败记录,删除这些记录。
-原理：Axes 是通过计算数据库里的失败尝试记录来判断是否锁定的。把失败记录删掉，计数归零，自然就解锁了。'''
+# 解锁所有用户
+docker compose exec web python manage.py axes_reset
 
+# 后台手动解锁：
+# 登录 Django Admin 后台。
+# 找到 Axes -> Access attempts。
+# 删除对应用户名/IP 的失败记录即可解锁。
