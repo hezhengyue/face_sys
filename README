@@ -32,7 +32,7 @@ git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
 cp .env.example .env
 vi .env 
-mkdir -p logs/face logs/import logs/system logs/user logs/nginx
+mkdir -p logs/face logs/import logs/system logs/user /logs/nginx static media assets
 cd docker
 ln -s ../.env .env
 docker compose build --no-cache
@@ -58,6 +58,8 @@ docker compose up -d
 docker exec -it django_web cat /app/.env
 # 如果不要之前的mysql数据
 docker compose down -v
+docker compose build --no-cache
+docker compose up -d
 
 
 # 防火墙设置 (Firewalld)
