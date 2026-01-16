@@ -125,19 +125,22 @@ CACHES = {
     }
 }
 
-# ===================== Axes防暴力破解配置 =====================
-AUTHENTICATION_BACKENDS = [
-    'axes.backends.AxesStandaloneBackend', # Axes认证后端：优先拦截非法登录
-    'django.contrib.auth.backends.ModelBackend', # Django默认认证后端
-]
-AXES_FAILURE_LIMIT = 5           # 同一用户/IP组合登录失败5次后锁定
-# AXES_COOLOFF_TIME = 1            # 锁定时长（小时）：1小时后自动解锁
-AXES_LOCKOUT_STRATEGY = 'combination_user_and_ip' # 锁定策略：基于用户+IP组合
-AXES_RESET_ON_SUCCESS = True     # 登录成功后重置失败次数
-AXES_META_PRECEDENCE = ('REMOTE_ADDR',)
 
-# ===================== Auditlog审计日志配置 =====================
-AUDITLOG_INCLUDE_ALL_MODELS = False # 不自动记录所有模型的变更，仅手动注册需要审计的模型
+# ===================== 会话与安全配置 =====================
+
+# 1. 设置会话有效期为 20 分钟 (单位：秒)
+# 20 * 60 = 1200 秒
+SESSION_COOKIE_AGE = 1200
+
+# 2. 开启"关闭浏览器即失效"
+# 设置为 True 后，Cookie 将不包含过期时间，浏览器关闭时会自动清除 Cookie
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# 3. 开启"每次请求刷新会话时间" (关键配置)
+# 如果不开启这项，用户登录后不管有没有操作，30分钟后都会强制踢出。
+# 开启后，只要用户在 30 分钟内有操作（点击/刷新），计时器就会重置，实现"30分钟无操作才注销"。
+SESSION_SAVE_EVERY_REQUEST = True
+
 
 # ===================== 用户模型配置 =====================
 AUTH_USER_MODEL = 'core.User' # 自定义用户模型：替换Django默认的User模型
@@ -171,21 +174,6 @@ if not MEDIA_ROOT.exists():
 
 # ===================== 日志目录与业务变量配置 =====================
 LOG_ROOT = BASE_DIR / 'logs'   # 日志文件根目录（具体日志子目录在其他地方创建）
-
-# 人脸识别API相关配置（从环境变量读取）
-FACE_API_KEY = os.getenv('FACE_API_KEY')       # 人脸识别API的Key
-FACE_SECRET_KEY = os.getenv('FACE_SECRET_KEY') # 人脸识别API的Secret
-FACE_GROUP_ID = os.getenv('FACE_GROUP_ID')     # 人脸识别分组ID
-LOGS_DAYS = int(os.getenv('LOGS_DAYS', 7))     # 日志保留天数，默认7天
-
-# ===================== 其他基础配置 =====================
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField' # 模型默认主键类型：BigInt自增
-
-# 登录/登出跳转配置
-LOGIN_REDIRECT_URL = '/admin/'    # 登录成功后跳转至Admin首页
-LOGOUT_REDIRECT_URL = '/admin/login/' # 登出后跳转至Admin登录页
-
-# ===================== 日志配置（适配Docker）=====================
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False, # 不禁用已存在的日志器
@@ -199,6 +187,36 @@ LOGGING = {
         'level': 'WARNING',                 # 日志级别：生产环境仅记录WARNING及以上，调试可改为INFO
     },
 }
+
+# ===================== 其他基础配置 =====================
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField' # 模型默认主键类型：BigInt自增
+
+# 登录/登出跳转配置
+LOGIN_REDIRECT_URL = '/admin/'    # 登录成功后跳转至Admin首页
+LOGOUT_REDIRECT_URL = '/admin/login/' # 登出后跳转至Admin登录页
+
+# ===================== 人脸识别API相关配置（从环境变量读取） =====================
+FACE_API_KEY = os.getenv('FACE_API_KEY')       # 人脸识别API的Key
+FACE_SECRET_KEY = os.getenv('FACE_SECRET_KEY') # 人脸识别API的Secret
+FACE_GROUP_ID = os.getenv('FACE_GROUP_ID')     # 人脸识别分组ID
+LOGS_DAYS = int(os.getenv('LOGS_DAYS', 7))     # 日志保留天数，默认7天
+
+
+# ===================== 第三方插件配置 =====================
+# ===================== Axes防暴力破解配置 =====================
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend', # Axes认证后端：优先拦截非法登录
+    'django.contrib.auth.backends.ModelBackend', # Django默认认证后端
+]
+AXES_FAILURE_LIMIT = 5           # 同一用户/IP组合登录失败5次后锁定
+# AXES_COOLOFF_TIME = 1            # 锁定时长（小时）：1小时后自动解锁
+AXES_LOCKOUT_STRATEGY = 'combination_user_and_ip' # 锁定策略：基于用户+IP组合
+AXES_RESET_ON_SUCCESS = True     # 登录成功后重置失败次数
+AXES_META_PRECEDENCE = ('REMOTE_ADDR',)
+
+# ===================== Auditlog审计日志配置 =====================
+AUDITLOG_INCLUDE_ALL_MODELS = False # 不自动记录所有模型的变更，仅手动注册需要审计的模型
+
 
 # ===================== SimpleUI后台美化配置 =====================
 SIMPLEUI_HOME_INFO = False  # 关闭SimpleUI首页的推广信息

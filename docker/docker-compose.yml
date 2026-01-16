@@ -18,6 +18,8 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - DJANGO_SETTINGS_MODULE=config.settings
+      - MYSQL_HOST=db
+      - REDIS_URL=redis://redis:6379/1
     depends_on:
       db:
         condition: service_healthy
@@ -42,8 +44,6 @@ services:
       - ../static:/app/static
       - ../media:/app/media
       - ../logs/nginx:/var/log/nginx
-    depends_on:
-      - web
 
   # --- MySQL 数据库服务 ---
   db:
