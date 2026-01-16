@@ -146,15 +146,18 @@ USE_I18N = True               # 启用国际化
 USE_TZ = False                # 不使用UTC时间，存储本地时间（国内项目推荐）
 
 # ===================== 静态文件管理（自动创建目录）=====================
-STATIC_URL = 'static/'        # 静态文件访问URL前缀：例如/static/css/style.css
+# STATICFILES_DIRS：自定义静态文件源目录（本项目暂不使用assets目录，故为空）
+# STATICFILES_DIRS 是「静态文件的源目录」（Django 要收集的文件在哪里）
+STATICFILES_DIRS = []
+
+# 静态文件访问URL前缀：例如/static/css/style.css
+STATIC_URL = 'static/'       
 # STATIC_ROOT：collectstatic命令的输出目录，Nginx实际读取静态文件的目录
+# STATIC_ROOT 是「静态文件的目标目录」（collectstatic 把文件复制到哪里）
 STATIC_ROOT = BASE_DIR / 'static'
 # 自动创建STATIC_ROOT目录：避免执行collectstatic时因目录不存在报错
 if not STATIC_ROOT.exists():
     STATIC_ROOT.mkdir(parents=True, exist_ok=True)
-
-# STATICFILES_DIRS：自定义静态文件源目录（本项目暂不使用assets目录，故为空）
-STATICFILES_DIRS = []
 
 # ===================== 媒体文件管理（自动创建目录）=====================
 MEDIA_URL = '/media/'          # 媒体文件访问URL前缀：例如/media/face/photo.jpg
