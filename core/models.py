@@ -16,12 +16,11 @@ class User(AbstractUser):
 
 class Person(models.Model):
     name = models.CharField("姓名", max_length=50)
-    class_name = models.CharField("班级", max_length=50, blank=True, null=True)
-    user_type = models.CharField("用户类型", max_length=50, blank=True, null=True)
+    class_name = models.CharField("班级", max_length=50, blank=True, null=True, default="")
+    user_type = models.CharField("用户类型", max_length=50, blank=True, null=True, default="")
     id_card = models.CharField("身份证号", max_length=20, unique=True)
-    
-    face_image = models.ImageField("人脸照片", upload_to=face_upload_to, blank=True, null=True, max_length=255)
-    source_image_url = models.CharField("源图片URL", max_length=500, blank=True)
+    face_image = models.ImageField("人脸照片", upload_to=face_upload_to, max_length=255)
+    source_image_url = models.CharField("源图片URL", max_length=500, blank=True, default="")
     
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     update_time = models.DateTimeField("更新时间", auto_now=True)

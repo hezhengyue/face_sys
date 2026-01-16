@@ -32,7 +32,7 @@ git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
 cp .env.example .env
 vi .env 
-mkdir -p logs/face logs/import logs/system logs/user /logs/nginx static media assets
+mkdir -p logs/face logs/import logs/system logs/user logs/nginx static media 
 cd docker
 ln -s ../.env .env
 docker compose build --no-cache
@@ -41,25 +41,37 @@ docker compose ps
 docker compose exec web python manage.py createsuperuser
 
 
+# 开发环境首次创建mysql
+CREATE DATABASE IF NOT EXISTS db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'db'@'localhost' IDENTIFIED BY '123456';
+GRANT ALL PRIVILEGES ON db.* TO 'db'@'localhost';
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+
+
 # 日常运维
 # 代码更新与发布，当 git 仓库有新代码提交时（包含新的 migration 文件）：
 cd face_sys
 git pull
 cd docker
-docker compose up -d --build
-# 清理未使用的旧镜像 (可选)
+docker compose build --no-cache
+docker compose up -d
+# 清理未使用的旧镜像 (可选)。每次执行docker compose build --no-cache都会生成新的docker-web镜像
 docker image prune -f
-# 如果遇到缓存问题严重，需要彻底重置：
+
+# 缓存问题严重时，彻底重置（保留数据卷）：
 cd face_sys/docker
-docker compose down
-docker rmi -f docker-web
-docker compose build --no-cache
-docker compose up -d
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
 docker exec -it django_web cat /app/.env
-# 如果不要之前的mysql数据
-docker compose down -v
-docker compose build --no-cache
-docker compose up -d
+
+# 重置并清空 MySQL 数据（谨慎使用，会删除所有数据）：
+cd face_sys/docker
+docker-compose down -v
+docker-compose build --no-cache
+docker-compose up -d
 
 
 # 防火墙设置 (Firewalld)

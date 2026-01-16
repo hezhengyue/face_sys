@@ -8,6 +8,7 @@
 venv/
 env/
 anaconda3/
+README.dev
 
 # 忽略 Python 编译缓存
 __pycache__/
@@ -18,5 +19,3 @@ logs/
 media/
 static/
 
-# ⚠️ 必须删除 **/migrations/ 这一行
-# 确保 migrations 文件夹下的 .py 文件（除了 __init__.py）都被提交到 Git
