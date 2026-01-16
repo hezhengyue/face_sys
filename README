@@ -41,13 +41,6 @@ docker compose ps
 docker compose exec web python manage.py createsuperuser
 
 
-# 开发环境首次创建mysql
-CREATE DATABASE IF NOT EXISTS db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'db'@'localhost' IDENTIFIED BY '123456';
-GRANT ALL PRIVILEGES ON db.* TO 'db'@'localhost';
-python manage.py makemigrations
-python manage.py migrate
-python manage.py createsuperuser
 
 
 # 日常运维
