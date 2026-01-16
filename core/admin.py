@@ -5,27 +5,21 @@ from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm
-from django.contrib import messages
-from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django import forms
-from django.utils.text import capfirst
+from django.core.exceptions import ValidationError
 
 # 第三方库
 from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
-from auditlog.models import LogEntry
-from auditlog.admin import LogEntryAdmin
-from axes.models import AccessLog, AccessAttempt
-from axes.admin import AccessLogAdmin, AccessAttemptAdmin
 
 # 本地模型
 from .models import User, Person, FaceScan
 from .services import ImageDownloadService
-from .utils import system_logger
+from .utils import log_system_error
 
 # =========================================================
-# 标准化配置：直接修改默认 admin.site 的标题
+# 标准化配置
 # =========================================================
 admin.site.site_header = '人脸识别系统管理'
 admin.site.site_title = '人脸识别系统'
@@ -116,7 +110,7 @@ class PersonResource(resources.ModelResource):
             try:
                 ImageDownloadService.trigger_download(instance.pk, instance.source_image_url)
             except Exception as e:
-                system_logger.error(f"导入触发下载失败: {e}")
+                log_system_error(f"导入触发下载失败: {e}")
 
 class PersonAdmin(ImportExportModelAdmin):
     resource_class = PersonResource
@@ -146,41 +140,11 @@ class PersonAdmin(ImportExportModelAdmin):
 
 
 # =========================================================
-# 3. 审计日志增强 (LogEntryAdmin)
-# =========================================================
-# ⚠️ 关键修改：自定义 Auditlog Admin 以显示 IP 和更友好的搜索
-class CustomLogEntryAdmin(LogEntryAdmin):
-    list_display = [
-        'created', 
-        'resource_url', 
-        'action', 
-        'msg_short', 
-        'user_url', 
-        'remote_addr'  # 显示真实 IP (配合中间件)
-    ]
-    search_fields = [
-        'timestamp', 
-        'object_repr', 
-        'changes', 
-        'actor__username',
-        'remote_addr'  # 支持搜 IP
-    ]
-    list_filter = ['action', 'timestamp', 'actor']
-
-
-# =========================================================
-# 4. 人脸识别菜单入口配置 (FaceScan)
+# 3. 人脸识别菜单入口配置 (FaceScan)
 # =========================================================
 @admin.register(FaceScan)
 class FaceScanAdmin(admin.ModelAdmin):
-    """
-    这是一个虚拟的 Admin，只为了在侧边栏生成菜单。
-    点击该菜单时，直接跳转到自定义的人脸扫描页面。
-    """
     def get_model_perms(self, request):
-        """
-        权限控制：只有有权限的用户能看到这个菜单
-        """
         return {
             'add': False,
             'change': False,
@@ -189,39 +153,23 @@ class FaceScanAdmin(admin.ModelAdmin):
         }
 
     def changelist_view(self, request, extra_context=None):
-        """
-        拦截列表视图：点击后重定向到人脸识别页面
-        """
         return HttpResponseRedirect(reverse('face_search'))
 
 
 # =========================================================
-# 5. 最终注册逻辑 (避免重复注册)
+# 4. 最终注册逻辑
 # =========================================================
 
-# 5.1 注册 User
+# 4.1 注册 User
 try:
     admin.site.unregister(User)
 except admin.sites.NotRegistered:
     pass
 admin.site.register(User, UserAdmin)
 
-# 5.2 注册 Person
+# 4.2 注册 Person
 admin.site.register(Person, PersonAdmin)
 
-# 5.3 注册 Auditlog (使用自定义 Admin)
-try:
-    admin.site.unregister(LogEntry)
-except admin.sites.NotRegistered:
-    pass
-admin.site.register(LogEntry, CustomLogEntryAdmin)
-
-# 5.4 注册 Axes (使用默认，确保已注册)
-if not admin.site.is_registered(AccessLog):
-    admin.site.register(AccessLog, AccessLogAdmin)
-if not admin.site.is_registered(AccessAttempt):
-    admin.site.register(AccessAttempt, AccessAttemptAdmin)
-
-# 5.5 注册 Group (保持默认)
+# 4.3 注册 Group
 if not admin.site.is_registered(Group):
     admin.site.register(Group)

@@ -9,7 +9,7 @@ services:
     env_file:
       - ../.env
     volumes:
-      # ⚠️ 生产环境：只挂载静态文件和日志，绝对不要挂载代码 (../:/app)
+      # 生产环境：只挂载静态文件和日志，绝对不要挂载代码 (../:/app)
       - ../static:/app/static
       - ../media:/app/media
       - ../logs:/app/logs
@@ -19,13 +19,13 @@ services:
       - TZ=Asia/Shanghai
       - DJANGO_SETTINGS_MODULE=config.settings
       - MYSQL_HOST=db
-      - REDIS_URL=redis://redis:6379/1
+      - REDIS_URL=redis://redis:6379
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    # ⚠️ 自动化启动流程：收集静态文件 -> 迁移数据库 -> 启动网站
+    # 自动化启动流程：收集静态文件 -> 迁移数据库 -> 启动网站
     # 只有当你的 migrations 文件被 COPY 进镜像（步骤1-3正确）时，这里才不会报错
     command: >
       sh -c "python manage.py collectstatic --noinput &&
@@ -37,7 +37,7 @@ services:
     image: nginx:alpine
     container_name: django_nginx
     restart: always
-    # 🟢 保持 Host 模式，这样 Nginx 才能拿到真实外网 IP
+    # 保持 Host 模式，这样 Nginx 才能拿到真实外网 IP
     network_mode: "host"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
