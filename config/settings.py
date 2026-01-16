@@ -6,15 +6,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=env_path)
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-key')
-DEBUG = str(os.getenv('DEBUG', 'True')).strip().lower() == 'true'
+SECRET_KEY = os.getenv('SECRET_KEY', 'ZA52Py77QHBeLhGBmAwCKyFN3BQM7CHM')
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://10.10.9.52',
-    'http://localhost',
-    'http://127.0.0.1',
-]
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '10.10.9.52']
+def str_to_bool(val):
+    return str(val).lower() in ('true', '1', 't', 'yes', 'on')
+
+# 安全起见，生产环境默认 DEBUG=False
+DEBUG = str_to_bool(os.getenv('DEBUG', 'False'))
+
+allowed_hosts_str = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',') if host.strip()]
+
+csrf_trusted_str = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost,http://127.0.0.1')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_str.split(',') if origin.strip()]
 # 另外，建议加上这个配置，告诉 Django 它是运行在代理后面的
 # SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CSRF_COOKIE_SECURE = False

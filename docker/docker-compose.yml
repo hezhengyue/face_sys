@@ -2,17 +2,17 @@ services:
   # --- Django 应用服务 ---
   web:
     build:
-      context: ..          
+      context: ..
       dockerfile: docker/Dockerfile
-    container_name: django_app
+    container_name: django_web
     restart: always
-    env_file:  # 移到服务内部
+    env_file:
       - ../.env
     volumes:
-      - ../:/app                    
-      - ../static:/app/static        
-      - ../media:/app/media          
-      - ../logs:/app/logs            
+      # ⚠️ 生产环境：只挂载静态文件和日志，绝对不要挂载代码 (../:/app)
+      - ../static:/app/static
+      - ../media:/app/media
+      - ../logs:/app/logs
     expose:
       - "8000"
     environment:
@@ -23,6 +23,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # ⚠️ 自动化启动流程：收集静态文件 -> 迁移数据库 -> 启动网站
+    # 只有当你的 migrations 文件被 COPY 进镜像（步骤1-3正确）时，这里才不会报错
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             python manage.py migrate &&
+             gunicorn config.wsgi:application -b 0.0.0.0:8000 --workers 4 --timeout 300"
 
   # --- Nginx 反向代理 ---
   nginx:
@@ -31,6 +37,7 @@ services:
     restart: always
     ports:
       - "80:80"
+      # - "443:443" # 如需 HTTPS 请在此开启
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ../static:/app/static
@@ -44,7 +51,10 @@ services:
     image: mysql:8.0
     container_name: django_db
     restart: always
-    env_file:  # 移到服务内部
+    # ⚠️ 安全设置：生产环境不暴露 3306 到公网
+    # ports:
+    #   - "3306:3306"
+    env_file:
       - ../.env
     environment:
       - TZ=Asia/Shanghai

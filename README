@@ -26,7 +26,8 @@ cd face_sys
 mkdir -p logs/face logs/import logs/system logs/user logs/ningx
 cd docker
 ln -s ../.env .env
-docker compose up -d --build
+docker-compose build --no-cache web
+docker compose up -d
 docker compose ps
 docker compose exec web python manage.py makemigrations core
 docker compose exec web python manage.py migrate core
@@ -38,6 +39,13 @@ docker compose exec web python manage.py createsuperuser
 # 重启
 docker cmpose down
 docker compose up -d --build
+
+# 重构
+docker compose down
+docker rmi -f docker-web
+docker compose build --no-cache web
+docker compose up -d
+docker exec -it django_web ls -la /app | grep .env
 
 # 删除容器
 # 1. 停止并删除 db、web 容器（保留 nginx/redis，若需全删可去掉 --filter）

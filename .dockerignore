@@ -1,8 +1,11 @@
+# 忽略敏感配置
+.env
+
 # 忽略 git 数据
 .git
 .gitignore
 
-# 忽略本地虚拟环境
+# 忽略本地虚拟环境 (防止本地环境污染镜像)
 venv/
 env/
 anaconda3/
@@ -11,17 +14,10 @@ anaconda3/
 __pycache__/
 *.pyc
 
-# 关键修正：只过滤迁移文件的 .py（除了 __init__.py），保留 migrations 目录
-**/migrations/*.py
-!**/migrations/__init__.py
-
-# 忽略日志/媒体/静态文件（挂载目录）
+# 忽略运行时生成的资源 (会在 docker-compose 中挂载)
 logs/
 media/
 static/
 
-# 忽略 Docker 配置目录
+# 忽略 Docker 配置目录自身
 docker/
-
-# 忽略敏感配置
-.env
