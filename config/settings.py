@@ -104,7 +104,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql', # 数据库引擎：MySQL
         'NAME': os.getenv('MYSQL_DATABASE', 'db'), # 数据库名，默认db
-        'USER': os.getenv('MYSQL_USER', 'root'), # 数据库用户名，默认root
+        'USER': os.getenv('MYSQL_USER', 'db'), # 数据库用户名，默认db
         'PASSWORD': os.getenv('MYSQL_PASSWORD', '123456'), # 数据库密码，默认123456
         'HOST': os.getenv('MYSQL_HOST', '127.0.0.1'), # 数据库主机，默认本地
         'PORT': int(os.getenv('MYSQL_PORT', 3306)), # 数据库端口，默认3306
