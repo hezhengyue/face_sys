@@ -18,3 +18,18 @@ class ExportAuditMiddleware(MiddlewareMixin):
             except Exception:
                 pass # 日志错误不影响业务
         return response
+
+
+class RealIPMiddleware(MiddlewareMixin):
+    """
+    让 Django 获取 Nginx 转发的真实 IP
+    """
+    def process_request(self, request):
+        # 获取 HTTP_X_FORWARDED_FOR 头
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        
+        if x_forwarded_for:
+            # X-Forwarded-For 可能包含多个 IP (client, proxy1, proxy2...)
+            # 第一个才是真实的客户端 IP
+            ip = x_forwarded_for.split(',')[0].strip()
+            request.META['REMOTE_ADDR'] = ip

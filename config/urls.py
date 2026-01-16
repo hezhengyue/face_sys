@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView  # <---【新增】引入重定向视图
+from django.views.generic import RedirectView
 from core import views
 
 urlpatterns = [

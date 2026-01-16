@@ -59,6 +59,8 @@ INSTALLED_APPS = [
 
 # ===================== 中间件配置（执行顺序至关重要）=====================
 MIDDLEWARE = [
+    # 🔥 必须放在第一个，先修正 IP
+    'core.middleware.RealIPMiddleware', 
     # Django内置中间件
     'django.middleware.security.SecurityMiddleware',          # 安全相关中间件（XSS/点击劫持等）
     'django.contrib.sessions.middleware.SessionMiddleware',   # 会话管理
@@ -129,9 +131,10 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend', # Django默认认证后端
 ]
 AXES_FAILURE_LIMIT = 5           # 同一用户/IP组合登录失败5次后锁定
-AXES_COOLOFF_TIME = 1            # 锁定时长（小时）：1小时后自动解锁
+# AXES_COOLOFF_TIME = 1            # 锁定时长（小时）：1小时后自动解锁
 AXES_LOCKOUT_STRATEGY = 'combination_user_and_ip' # 锁定策略：基于用户+IP组合
 AXES_RESET_ON_SUCCESS = True     # 登录成功后重置失败次数
+AXES_META_PRECEDENCE = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')  # 告诉 Axes 优先读取 X-Forwarded-For 头，如果没有再读 REMOTE_ADDR
 
 # ===================== Auditlog审计日志配置 =====================
 AUDITLOG_INCLUDE_ALL_MODELS = False # 不自动记录所有模型的变更，仅手动注册需要审计的模型
@@ -201,6 +204,10 @@ LOGGING = {
 SIMPLEUI_HOME_INFO = False  # 关闭SimpleUI首页的推广信息
 SIMPLEUI_ANALYSIS = False   # 关闭SimpleUI的统计分析（隐私保护）
 SIMPLEUI_STATIC_OFFLINE = True # 使用离线静态文件：避免加载CDN资源
+# 动态判断logo文件是否存在，存在则设置，不存在则不设置
+logo_file_path = MEDIA_ROOT / 'logo.png'  # 拼接logo文件的完整本地路径
+if logo_file_path.exists():
+    SIMPLEUI_LOGO = '/media/logo.png'  # 文件存在时设置自定义logo
 
 # SimpleUI图标自定义：为Admin后台模型配置图标
 SIMPLEUI_ICON = {

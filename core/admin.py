@@ -9,8 +9,6 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django import forms
-from django.apps import apps
-from django.contrib.admin import AdminSite
 from django.utils.text import capfirst
 
 # 第三方库
@@ -18,14 +16,13 @@ from import_export.admin import ImportExportModelAdmin
 from import_export import resources, fields
 from auditlog.models import LogEntry
 from auditlog.admin import LogEntryAdmin
-from axes.models import AccessLog
-from axes.admin import AccessLogAdmin
+from axes.models import AccessLog, AccessAttempt
+from axes.admin import AccessLogAdmin, AccessAttemptAdmin
 
 # 本地模型
 from .models import User, Person, FaceScan
 from .services import ImageDownloadService
 from .utils import system_logger
-from .views import face_search_view   # 导入你的扫描视图
 
 # =========================================================
 # 标准化配置：直接修改默认 admin.site 的标题
@@ -34,8 +31,9 @@ admin.site.site_header = '人脸识别系统管理'
 admin.site.site_title = '人脸识别系统'
 admin.site.index_title = '数据管理'
 
+
 # =========================================================
-# 用户管理 (UserAdmin)
+# 1. 用户管理 (UserAdmin)
 # =========================================================
 class CustomUserCreationForm(forms.ModelForm):
     password_1 = forms.CharField(label="密码", widget=forms.PasswordInput)
@@ -47,7 +45,6 @@ class CustomUserCreationForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ("username", "department", "is_staff", "is_superuser")
-        # fields = ("username", "department")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -82,9 +79,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = (
         ('用户', {'fields': ('username', 'password')}),
         ('个人信息', {'fields': ('department',)}),
-        # ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('权限', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
-        # ('重要日期', {'fields': ('last_login', 'date_joined')}),
     )
     add_fieldsets = (
         ('用户', {
@@ -99,7 +94,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 # =========================================================
-# 人员管理 (PersonAdmin)
+# 2. 人员管理 (PersonAdmin)
 # =========================================================
 class PersonResource(resources.ModelResource):
     name = fields.Field(attribute='name', column_name='姓名')
@@ -151,7 +146,30 @@ class PersonAdmin(ImportExportModelAdmin):
 
 
 # =========================================================
-# 人脸识别菜单入口配置
+# 3. 审计日志增强 (LogEntryAdmin)
+# =========================================================
+# ⚠️ 关键修改：自定义 Auditlog Admin 以显示 IP 和更友好的搜索
+class CustomLogEntryAdmin(LogEntryAdmin):
+    list_display = [
+        'created', 
+        'resource_url', 
+        'action', 
+        'msg_short', 
+        'user_url', 
+        'remote_addr'  # 显示真实 IP (配合中间件)
+    ]
+    search_fields = [
+        'timestamp', 
+        'object_repr', 
+        'changes', 
+        'actor__username',
+        'remote_addr'  # 支持搜 IP
+    ]
+    list_filter = ['action', 'timestamp', 'actor']
+
+
+# =========================================================
+# 4. 人脸识别菜单入口配置 (FaceScan)
 # =========================================================
 @admin.register(FaceScan)
 class FaceScanAdmin(admin.ModelAdmin):
@@ -161,7 +179,7 @@ class FaceScanAdmin(admin.ModelAdmin):
     """
     def get_model_perms(self, request):
         """
-        确保只有有权限的用户能看到这个菜单
+        权限控制：只有有权限的用户能看到这个菜单
         """
         return {
             'add': False,
@@ -172,34 +190,38 @@ class FaceScanAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         """
-        重写列表视图：当点击菜单进入此视图时，
-        直接重定向到 urls.py 中定义的 'face_search' 路由
+        拦截列表视图：点击后重定向到人脸识别页面
         """
         return HttpResponseRedirect(reverse('face_search'))
 
+
 # =========================================================
-# 注册所有模型到后台（修正重复注册问题）
+# 5. 最终注册逻辑 (避免重复注册)
 # =========================================================
-# 先取消注册（防止重复注册报错）
+
+# 5.1 注册 User
 try:
     admin.site.unregister(User)
 except admin.sites.NotRegistered:
     pass
+admin.site.register(User, UserAdmin)
 
+# 5.2 注册 Person
+admin.site.register(Person, PersonAdmin)
+
+# 5.3 注册 Auditlog (使用自定义 Admin)
 try:
-    admin.site.unregister(Group)
+    admin.site.unregister(LogEntry)
 except admin.sites.NotRegistered:
     pass
+admin.site.register(LogEntry, CustomLogEntryAdmin)
 
-# 注册核心业务模型
-admin.site.register(User, UserAdmin)
-admin.site.register(Person, PersonAdmin)
-admin.site.register(Group)  # 使用默认的 GroupAdmin
-
-# 注册 Auditlog (数据审计) - 检查是否已注册
-if not admin.site.is_registered(LogEntry):
-    admin.site.register(LogEntry, LogEntryAdmin)
-
-# 注册 Axes (安全日志)
+# 5.4 注册 Axes (使用默认，确保已注册)
 if not admin.site.is_registered(AccessLog):
     admin.site.register(AccessLog, AccessLogAdmin)
+if not admin.site.is_registered(AccessAttempt):
+    admin.site.register(AccessAttempt, AccessAttemptAdmin)
+
+# 5.5 注册 Group (保持默认)
+if not admin.site.is_registered(Group):
+    admin.site.register(Group)
