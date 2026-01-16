@@ -90,7 +90,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('MYSQL_DATABASE', 'db'),
         'USER': os.getenv('MYSQL_USER', 'root'),
-        'PASSWORD': os.getenv('MYSQL_PASSWORD', '1234'),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD', '123456'),
         'HOST': os.getenv('MYSQL_HOST', '127.0.0.1'),
         'PORT': int(os.getenv('MYSQL_PORT', 3306)),
         'OPTIONS': {
@@ -160,6 +160,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # 登录登出跳转
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
+
+LOG_ROOT = BASE_DIR / 'logs'
 
 # 日志配置 (Docker下推荐输出到 console)
 LOGGING = {
