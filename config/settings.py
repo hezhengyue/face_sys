@@ -216,7 +216,7 @@ SIMPLEUI_ICON = {
 # SimpleUI自定义菜单配置
 SIMPLEUI_CONFIG = {
     'system_keep': True, # 保留系统默认菜单
-    'menu_display': ['人脸识别', '认证和授权', 'Audit log', 'Axes', '核心业务'], # 显示指定菜单
+    'menu_display': ['人脸识别', 'Audit log', 'Axes', '核心业务'], # 显示指定菜单，隐藏'认证和授权',
     'dynamic': True,     # 启用动态菜单
     'menus': [
         {

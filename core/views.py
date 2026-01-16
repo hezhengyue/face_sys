@@ -69,6 +69,7 @@ def api_search_face(request):
                 return JsonResponse({'status': 'success', 'data': {
                     'name': name,
                     'class_name': person.class_name if person else '',
+                    'user_type': person.user_type if person else '',
                     'id_card': top['user_id'],
                     'score': round(top['score'], 1),
                     'photo_url': person.face_image.url if person and person.face_image else ''
