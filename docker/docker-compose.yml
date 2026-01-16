@@ -13,8 +13,8 @@ services:
       - ../static:/app/static
       - ../media:/app/media
       - ../logs:/app/logs
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"  
     environment:
       - TZ=Asia/Shanghai
       - DJANGO_SETTINGS_MODULE=config.settings
@@ -35,9 +35,8 @@ services:
     image: nginx:alpine
     container_name: django_nginx
     restart: always
-    ports:
-      - "80:80"
-      # - "443:443" # 如需 HTTPS 请在此开启
+    # 🟢 保持 Host 模式，这样 Nginx 才能拿到真实外网 IP
+    network_mode: "host"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ../static:/app/static

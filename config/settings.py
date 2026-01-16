@@ -134,7 +134,7 @@ AXES_FAILURE_LIMIT = 5           # 同一用户/IP组合登录失败5次后锁�
 # AXES_COOLOFF_TIME = 1            # 锁定时长（小时）：1小时后自动解锁
 AXES_LOCKOUT_STRATEGY = 'combination_user_and_ip' # 锁定策略：基于用户+IP组合
 AXES_RESET_ON_SUCCESS = True     # 登录成功后重置失败次数
-AXES_META_PRECEDENCE = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')  # 告诉 Axes 优先读取 X-Forwarded-For 头，如果没有再读 REMOTE_ADDR
+AXES_META_PRECEDENCE = ('REMOTE_ADDR',)
 
 # ===================== Auditlog审计日志配置 =====================
 AUDITLOG_INCLUDE_ALL_MODELS = False # 不自动记录所有模型的变更，仅手动注册需要审计的模型

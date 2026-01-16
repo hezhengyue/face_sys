@@ -45,9 +45,11 @@ docker compose exec web python manage.py createsuperuser
 
 # 日常运维
 # 代码更新与发布，当 git 仓库有新代码提交时（包含新的 migration 文件）：
+docker-compose down
 cd face_sys
 git pull
 cd docker
+docker compose down
 docker compose build --no-cache
 docker compose up -d
 # 清理未使用的旧镜像 (可选)。每次执行docker compose build --no-cache都会生成新的docker-web镜像
