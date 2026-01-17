@@ -109,6 +109,28 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 AUTH_USER_MODEL = 'core.User'
 
+AUTH_PASSWORD_VALIDATORS = [
+    # 检查密码是否与用户信息（如用户名）太相似
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    # 检查最小长度（默认是8，这里可以改为10或12）
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 10,
+        }
+    },
+    # 检查是否是常见弱密码（如 123456, password 等）
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    # 检查密码是否完全由数字组成
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
 # ===================== 国际化 =====================
 LANGUAGE_CODE = 'zh-hans'
 TIME_ZONE = 'Asia/Shanghai'
