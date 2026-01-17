@@ -65,3 +65,15 @@ sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --permanent --add-service=https
 sudo firewall-cmd --reload
 
+# 账号安全 (Axes 锁定处理)
+# 当用户因多次登录失败被锁定时：
+# 命令行解锁：
+# 解锁指定用户
+docker compose exec web python manage.py axes_reset_username <用户名>
+# 解锁所有用户
+docker compose exec web python manage.py axes_reset
+
+# 后台手动解锁：
+# 登录 Django Admin 后台。
+# 找到 Axes -> Access attempts。
+# 删除对应用户名/IP 的失败记录即可解锁。

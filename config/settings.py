@@ -26,6 +26,11 @@ CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_str.split(',')
 INSTALLED_APPS = [
     'simpleui',
     "import_export",
+    # === 新增插件 ===
+    'axes',          # 防暴力破解
+    'auditlog',      # 操作审计
+    # ===============
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +52,14 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    # === 新增中间件 (位置很重要) ===
+    # Axes 必须在 Auth 之后 (虽然主要靠 Backend，但中间件处理锁定页面)
+    'axes.middleware.AxesMiddleware',
+    # Auditlog 必须在 Auth 之后，以便获取 request.user
+    'auditlog.middleware.AuditlogMiddleware',
+    # =============================
+
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
@@ -83,10 +96,13 @@ DATABASES = {
         'PASSWORD': os.getenv('MYSQL_PASSWORD', '123456'),
         'HOST': os.getenv('MYSQL_HOST', '127.0.0.1'),
         'PORT': int(os.getenv('MYSQL_PORT', 3306)),
-        'OPTIONS': {'charset': 'utf8mb4'},
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+            # 添加下面这一行，强制设置排序规则，避免默认不一致
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine=INNODB, character_set_connection=utf8mb4, collation_connection=utf8mb4_unicode_ci",
+        },
     }
 }
-
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
@@ -171,6 +187,8 @@ LOGGING = {
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
 
+# ===================== 人脸API配置 =====================
+
 FACE_API_KEY = os.getenv('FACE_API_KEY')
 FACE_SECRET_KEY = os.getenv('FACE_SECRET_KEY')
 FACE_GROUP_ID = os.getenv('FACE_GROUP_ID')
@@ -188,19 +206,18 @@ if logo_file_path.exists():
 SIMPLEUI_ICON = {
     '核心业务': 'far fa-bars',
     '人员档案': 'far fa-person',
-    '人脸识别': 'fas fa-camera',
     '系统用户': 'fas fa-user-shield',
+    '人脸识别': 'fas fa-camera',
 }
-
 # SimpleUI自定义菜单配置
 SIMPLEUI_CONFIG = {
     'system_keep': True,
-    'menu_display': ['人脸识别', '核心业务', ], # 隐藏'认证和授权'
+    'menu_display': ['人脸识别', '核心业务', '用户锁定日志', '审计日志'], # 隐藏原始的'认证和授权', 'Axes', 'Audit log'
     'dynamic': True,
     'menus': [
         {
             'name': '人脸识别',
-            'icon': 'fas fa-camera',
+            'icon': 'far fa-bars',
             'models': [
                 {
                     'name': '开始识别',
@@ -208,6 +225,68 @@ SIMPLEUI_CONFIG = {
                     'icon': 'fas fa-search'
                 }
             ]
-        }
+        },
+        {
+            'name': '用户锁定日志',
+            'icon': 'far fa-bars',
+            'models': [
+                {
+                    'name': '锁定日志',
+                    'url': '/admin/axes/accessattempt/',
+                    'icon': 'fas fa-history'
+                },
+                {
+                    'name': '访问日志',
+                    'url': '/admin/axes/accesslog/',
+                    'icon': 'fas fa-history'
+                },
+
+            ]
+        },
+        {
+            'name': '审计日志',
+            'icon': 'far fa-bars',
+            'models': [
+                {
+                    'name': '审计日志',
+                    'url': '/admin/auditlog/logentry/',
+                    'icon': 'far fas fa-history'
+                }
+            ]
+        },
+        
     ]
 }
+
+
+
+
+# ===================== Axes (防暴力破解) 配置 =====================
+AXES_ENABLED = True
+AXES_FAILURE_LIMIT = 5          # 允许失败次数
+AXES_RESET_ON_SUCCESS = True    
+AXES_LOCKOUT_PARAMETERS = [["username","ip_address"]] # 同一个ip只锁定一个账户
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# 账号安全 (Axes 锁定处理)
+# 当用户因多次登录失败被锁定时：
+# 命令行解锁：
+# 解锁指定用户
+# docker compose exec web python manage.py axes_reset_username <用户名>
+# 解锁所有用户
+# docker compose exec web python manage.py axes_reset
+
+# 后台手动解锁：
+# 登录 Django Admin 后台。
+# 找到 Axes -> Access attempts。
+# 删除对应用户名/IP 的失败记录即可解锁。
+
+# ===================== Auditlog (审计) 配置 =====================
+# Auditlog 默认会读取 request.META['REMOTE_ADDR']
+# 配合 RealIPMiddleware，IP记录将自动生效
+AUDITLOG_INCLUDE_ALL_MODELS = False # 手动注册需要的模型
+
+

@@ -11,3 +11,5 @@ django-redis
 django-import-export
 django-simpleui
 gunicorn
+django-auditlog
+django-axes 

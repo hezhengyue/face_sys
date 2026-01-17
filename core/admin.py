@@ -156,6 +156,37 @@ class FaceScanAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(reverse('face_search'))
 
 
+
+
+# =========================================================
+# 4. auditlog显示IP
+# =========================================================
+from auditlog.models import LogEntry
+from auditlog.admin import LogEntryAdmin
+
+# 1. 先取消 auditlog 默认的注册
+if admin.site.is_registered(LogEntry):
+    admin.site.unregister(LogEntry)
+
+# 2. 定义新的 Admin 类
+@admin.register(LogEntry)
+class CustomLogEntryAdmin(LogEntryAdmin):
+    
+    list_display = [
+    # 核心必显字段（优先级从高到低）
+    'timestamp',       # 1. 操作时间（最核心，排查问题先看时间）
+    'user_url',        # 2. 操作用户（谁做的）
+    'remote_addr',     # 3. IP地址（从哪来的）
+    'action',          # 4. 操作类型（增/删/改）
+    'resource_url',    # 5. 操作资源（改了哪个对象）
+    'msg_short',       # 6. 操作内容（改了什么）
+]
+
+    # 搜索和筛选保持实用即可
+    search_fields = ['timestamp', 'actor__username', 'remote_addr', 'object_repr', 'changes']
+    list_filter = ['action', 'timestamp', 'actor', 'remote_addr']  
+
+
 # =========================================================
 # 4. 最终注册逻辑
 # =========================================================
@@ -173,3 +204,4 @@ admin.site.register(Person, PersonAdmin)
 # 4.3 注册 Group
 if not admin.site.is_registered(Group):
     admin.site.register(Group)
+
