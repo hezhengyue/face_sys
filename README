@@ -55,11 +55,18 @@ docker compose logs -f
 docker image prune -f
 
 
-# 重置并清空 MySQL 数据（谨慎使用，会删除所有数据）：
+# 重置并清空当前docker-compose.yml所有数据卷（谨慎使用，会删除所有数据）：
 cd face_sys/docker
 docker-compose down -v
-docker-compose build --no-cache
 docker-compose up -d
+
+# 删除指定容器数据卷
+cd face_sys/docker
+docker compose stop redis
+docker compose rm -f redis
+docker volume ls # 查看所有卷
+docker volume rm docker_redis_data # 默认是docker_redis_data，但建议使用docker volume ls 查看
+docker compose up -d redis
 
 
 # 防火墙设置 (Firewalld)
