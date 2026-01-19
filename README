@@ -8,7 +8,6 @@ sudo mkdir -p /etc/docker
 sudo tee /etc/docker/daemon.json <<-'EOF'
 {
   "registry-mirrors": [
-    "https://registry.cn-hangzhou.aliyuncs.com",
     "https://docker.m.daocloud.io",
     "https://docker.1ms.run"
   ],
@@ -26,19 +25,21 @@ cat  /etc/docker/daemon.json
 docker info
 
 
+
 # 首次部署流程
 # 注意：请确保本地开发环境已生成 migrations 文件并提交到 Git。生产环境不执行 makemigrations。
 git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
 cp .env.example .env
 vi .env 
-RUN mkdir -p logs/django logs/nginx static media
+mkdir -p logs/django logs/nginx static media
 cd docker
 ln -s ../.env .env
 docker compose build --no-cache
 docker compose up -d
 docker compose ps
 docker compose exec web python manage.py createsuperuser
+docker compose logs -f 
 
 
 # 日常运维
@@ -49,6 +50,7 @@ cd docker
 docker compose down
 docker compose build --no-cache
 docker compose up -d
+docker compose logs -f 
 # 清理未使用的旧镜像 (可选)。每次执行docker compose build --no-cache都会生成新的docker-web镜像
 docker image prune -f
 
@@ -65,15 +67,3 @@ sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --permanent --add-service=https
 sudo firewall-cmd --reload
 
-# 账号安全 (Axes 锁定处理)
-# 当用户因多次登录失败被锁定时：
-# 命令行解锁：
-# 解锁指定用户
-docker compose exec web python manage.py axes_reset_username <用户名>
-# 解锁所有用户
-docker compose exec web python manage.py axes_reset
-
-# 后台手动解锁：
-# 登录 Django Admin 后台。
-# 找到 Axes -> Access attempts。
-# 删除对应用户名/IP 的失败记录即可解锁。

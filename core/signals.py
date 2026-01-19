@@ -2,7 +2,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 # 1. 修改导入：从 django 原生信号导入 user_login_failed，不再引用 axes
 from django.contrib.auth.signals import user_logged_in, user_login_failed
-from .utils import log_business
+from .utils import log_business, get_client_ip
 from .models import Person
 from .services import BaiduService
 
@@ -12,7 +12,7 @@ def log_login_success(sender, user, request, **kwargs):
     """登录成功日志"""
     log_business(
         user=user,
-        ip=request.META.get('REMOTE_ADDR'),
+        ip=get_client_ip(request),
         action="登录",
         obj="系统",
         detail="登录成功"
@@ -27,7 +27,7 @@ def log_login_failed(sender, credentials, request, **kwargs):
     username = credentials.get('username', '未知用户')
     log_business(
         user=username,
-        ip=request.META.get('REMOTE_ADDR'),
+        ip=get_client_ip(request),
         action="登录失败",
         obj="系统",
         detail="密码错误或用户不存在"

@@ -2,14 +2,28 @@ from django.utils.deprecation import MiddlewareMixin
 from .utils import log_business, get_client_ip
 
 class RealIPMiddleware(MiddlewareMixin):
-    """必须放在最前面，修正 request.META['REMOTE_ADDR']"""
+    """
+    修正 IP 获取逻辑
+    1. 优先获取 X-Forwarded-For 的第一个 IP (通常是真实客户端 IP)
+    2. 其次获取 X-Real-IP
+    """
     def process_request(self, request):
-        real_ip = request.META.get('HTTP_X_REAL_IP')
-        if not real_ip:
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            if x_forwarded_for:
-                real_ip = x_forwarded_for.split(',')[0].strip()
+        # print("=== META DEBUG ===")
+        # print("X-Forwarded-For:", request.META.get('HTTP_X_FORWARDED_FOR'))
+        # print("X-Real-IP:", request.META.get('HTTP_X_REAL_IP'))
+        # print("REMOTE_ADDR:", request.META.get('REMOTE_ADDR'))
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        real_ip = None
+
+        if x_forwarded_for:
+            # 必须用 split，防止多层代理导致 IP 格式错误
+            real_ip = x_forwarded_for.split(',')[0].strip()
         
+        # 兜底：如果 Nginx 没传 XFF，尝试 X-Real-IP
+        if not real_ip:
+            real_ip = request.META.get('HTTP_X_REAL_IP')
+        
+        # 修正 Django 的 REMOTE_ADDR
         if real_ip:
             request.META['REMOTE_ADDR'] = real_ip
             request.META['HTTP_X_REAL_IP'] = real_ip

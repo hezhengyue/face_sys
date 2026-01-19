@@ -39,9 +39,6 @@ def configure_logging():
     # 3. 控制台输出 - 这里不需要改格式，Loguru默认格式很好，关键在于调用时的 depth
     logger.add(sys.stdout, level="INFO")
 
-def get_client_ip(request):
-    return request.META.get('REMOTE_ADDR', '0.0.0.0')
-
 def log_business(user, ip, action, obj, detail=""):
     """
     统一业务日志写入函数
@@ -65,3 +62,7 @@ def log_business(user, ip, action, obj, detail=""):
 def log_system_error(msg):
     # 错误日志同样加上 depth=1，方便定位是哪里报错
     logger.opt(depth=1).error(msg)
+
+
+def get_client_ip(request):
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')

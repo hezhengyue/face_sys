@@ -1,0 +1,45 @@
+services:
+  # --- MySQL 数据库服务 ---
+  db:
+    image: mysql:8.0
+    container_name: django_db_dev
+    restart: always
+    ports:
+      - "127.0.0.1:3306:3306"
+    env_file:
+      - ../.env
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - db_data:/var/lib/mysql
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # --- Redis 缓存服务 ---
+  redis:
+    image: redis:7.2
+    container_name: django_redis_dev
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  db_data:
+  redis_data:
