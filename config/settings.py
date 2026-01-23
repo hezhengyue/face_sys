@@ -204,22 +204,37 @@ logo_file_path = MEDIA_ROOT / 'logo.png'
 if logo_file_path.exists():
     SIMPLEUI_LOGO = '/media/logo.png'
 
-# SimpleUI图标自定义
+# 定义图标 (注意：这里要用我们刚刚改好的中文名)
 SIMPLEUI_ICON = {
     '核心业务': 'far fa-bars',
     '人员档案': 'far fa-person',
     '系统用户': 'fas fa-user-shield',
     '人脸识别': 'fas fa-camera',
+    
+
+    '安全监控': 'fas fa-shield-alt',      # 对应 axes_config.verbose_name
+    '锁定记录': 'fas fa-lock',            # 对应 AccessAttempt verbose_name_plural
+    '登录流水': 'fas fa-list-alt',        # 对应 AccessLog verbose_name_plural
+    
+    '操作审计': 'fas fa-history',         # 对应 audit_config.verbose_name
+    '操作日志': 'fas fa-file-signature',  # 对应 LogEntry verbose_name_plural
 }
+
 # SimpleUI自定义菜单配置
 SIMPLEUI_CONFIG = {
     'system_keep': True,
-    'menu_display': ['人脸识别', '核心业务', '用户锁定日志', '审计日志'], # 隐藏原始的'认证和授权', 'Axes', 'Audit log'
+    'menu_display': [
+        '人脸识别', 
+        '核心业务', 
+        '安全监控',  # Axes
+        '操作审计',  # Auditlog
+        '认证和授权' # Auth
+    ], 
     'dynamic': True,
     'menus': [
         {
             'name': '人脸识别',
-            'icon': 'far fa-bars',
+            'icon': 'far fa-camera',
             'models': [
                 {
                     'name': '开始识别',
@@ -228,35 +243,6 @@ SIMPLEUI_CONFIG = {
                 }
             ]
         },
-        {
-            'name': '用户锁定日志',
-            'icon': 'far fa-bars',
-            'models': [
-                {
-                    'name': '锁定日志',
-                    'url': '/admin/axes/accessattempt/',
-                    'icon': 'fas fa-history'
-                },
-                {
-                    'name': '访问日志',
-                    'url': '/admin/axes/accesslog/',
-                    'icon': 'fas fa-history'
-                },
-
-            ]
-        },
-        {
-            'name': '审计日志',
-            'icon': 'far fa-bars',
-            'models': [
-                {
-                    'name': '审计日志',
-                    'url': '/admin/auditlog/logentry/',
-                    'icon': 'far fas fa-history'
-                }
-            ]
-        },
-        
     ]
 }
 
