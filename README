@@ -32,7 +32,7 @@ git clone https://github.com/hezhengyue/face_sys.git
 cd face_sys
 cp .env.example .env
 vi .env 
-mkdir -p logs/django logs/nginx static media
+mkdir -p logs static media
 cd docker
 ln -s ../.env .env
 docker compose build --no-cache

@@ -2,7 +2,8 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save
 # 1. 修改导入：从 django 原生信号导入 user_login_failed，不再引用 axes
 from django.contrib.auth.signals import user_logged_in, user_login_failed
-from .utils import log_business, get_client_ip
+from .utils import get_client_ip
+from .log_utils import log_business
 from .models import Person
 from .services import BaiduService
 

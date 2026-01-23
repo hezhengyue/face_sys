@@ -11,7 +11,7 @@ from django.db import transaction
 from .models import Person
 
 # 统一日志工具
-from .utils import log_system_error, log_business
+from .log_utils import log_business, log_system_error
 
 # 全局线程池
 image_download_executor = ThreadPoolExecutor(max_workers=10)

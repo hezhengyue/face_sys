@@ -8,11 +8,9 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         # 1. 初始化日志
-        try:
-            from .utils import configure_logging
-            configure_logging()
-        except ImportError:
-            pass
+        from .log_utils import configure_logging
+        configure_logging()
+
         
         # 2. 注册信号
         try:

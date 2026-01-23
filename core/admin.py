@@ -16,7 +16,7 @@ from import_export import resources, fields
 # 本地模型
 from .models import User, Person, FaceScan
 from .services import ImageDownloadService
-from .utils import log_system_error
+from .log_utils import log_system_error
 
 # =========================================================
 # 标准化配置

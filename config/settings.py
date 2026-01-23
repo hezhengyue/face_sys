@@ -130,11 +130,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
-    # 检查最小长度（默认是8，这里可以改为10或12）
+    # 检查最小长度
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
         'OPTIONS': {
-            'min_length': 10,
+            'min_length': 8,
         }
     },
     # 检查是否是常见弱密码（如 123456, password 等）
@@ -165,10 +165,12 @@ MEDIA_ROOT = BASE_DIR / 'media'
 if not MEDIA_ROOT.exists():
     MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 
-# ===================== Django原生日志 (降级为控制台输出) =====================
-LOG_ROOT = BASE_DIR / 'logs/django'
+# =========== 初始化全局日志系统 ===========
+LOG_ROOT = BASE_DIR / 'logs'
 LOGS_DAYS = int(os.getenv('LOGS_DAYS', 180))
 
+
+# ===================== Django原生日志 (降级为控制台输出) =====================
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

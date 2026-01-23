@@ -7,7 +7,8 @@ import json
 
 from .services import BaiduService
 from .models import Person, FaceScan
-from .utils import log_business, log_system_error, get_client_ip
+from .utils import get_client_ip
+from .log_utils import log_business, log_system_error
 
 @staff_member_required(login_url='/admin/login/')
 def face_search_view(request):

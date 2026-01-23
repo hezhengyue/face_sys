@@ -1,5 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
-from .utils import log_business, get_client_ip
+from .utils import get_client_ip
+from .log_utils import log_business
 
 class RealIPMiddleware(MiddlewareMixin):
     """
